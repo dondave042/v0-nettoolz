@@ -1,4 +1,4 @@
--- Create admin users table
+-- noinspection SqlNoDataSourceInspectionForFile
 CREATE TABLE IF NOT EXISTS admin_users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -6,15 +6,16 @@ CREATE TABLE IF NOT EXISTS admin_users (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create product categories table
 CREATE TABLE IF NOT EXISTS categories (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  description TEXT,
+  icon VARCHAR(50),
   sort_order INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create products table
 CREATE TABLE IF NOT EXISTS products (
   id SERIAL PRIMARY KEY,
   sku VARCHAR(50) NOT NULL,
@@ -25,19 +26,19 @@ CREATE TABLE IF NOT EXISTS products (
   category_id INT REFERENCES categories(id) ON DELETE SET NULL,
   badge VARCHAR(50),
   image_url TEXT,
+  is_featured BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create announcements table
 CREATE TABLE IF NOT EXISTS announcements (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create orders table
 CREATE TABLE IF NOT EXISTS orders (
   id SERIAL PRIMARY KEY,
   product_id INT REFERENCES products(id) ON DELETE SET NULL,
@@ -48,12 +49,12 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create testimonials table
 CREATE TABLE IF NOT EXISTS testimonials (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   role VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
   rating INT DEFAULT 5,
+  is_visible BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
