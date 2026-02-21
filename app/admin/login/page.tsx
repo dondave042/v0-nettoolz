@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Lock, Mail, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -45,13 +44,10 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
-          <Image
+          <img
             src="/images/logo.png"
             alt="NETTOOLZ Logo"
-            width={80}
-            height={80}
-            className="mb-4 drop-shadow-2xl"
-            style={{ width: 80, height: "auto" }}
+            className="mb-4 h-20 w-20 drop-shadow-2xl"
           />
           <h1 className="font-[var(--font-heading)] text-2xl font-bold text-white">
             NETTOOLZ Admin

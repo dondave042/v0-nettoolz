@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
 import { Menu, X, ShoppingCart, Search } from "lucide-react"
@@ -22,13 +21,10 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
-          <Image
+          <img
             src="/images/logo.png"
             alt="NETTOOLZ Logo"
-            width={40}
-            height={40}
-            className="rounded-full"
-            style={{ width: 40, height: "auto" }}
+            className="h-10 w-10 rounded-full"
           />
           <span className="font-[var(--font-heading)] text-xl font-bold tracking-tight text-foreground">
             NETTOOLZ

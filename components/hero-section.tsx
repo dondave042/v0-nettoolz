@@ -1,4 +1,3 @@
-import Image from "next/image"
 import { ArrowRight, Shield, Zap, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -68,14 +67,10 @@ export function HeroSection() {
           <div className="flex-shrink-0">
             <div className="relative">
               <div className="absolute -inset-4 rounded-full bg-[#38bdf8]/20 blur-2xl" />
-              <Image
+              <img
                 src="/images/logo.png"
                 alt="NETTOOLZ Premium Web Logs"
-                width={280}
-                height={280}
-                className="relative drop-shadow-2xl"
-                style={{ width: 280, height: "auto" }}
-                priority
+                className="relative h-80 w-80 drop-shadow-2xl"
               />
             </div>
           </div>
