@@ -1,4 +1,3 @@
-import Image from "next/image"
 import Link from "next/link"
 import { Shield, Mail, MessageCircle } from "lucide-react"
 
@@ -10,13 +9,10 @@ export function SiteFooter() {
           {/* Brand Column */}
           <div className="flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-3">
-              <Image
+              <img
                 src="/images/logo.png"
                 alt="NETTOOLZ Logo"
-                width={36}
-                height={36}
-                className="rounded-full"
-                style={{ width: 36, height: "auto" }}
+                className="h-9 w-9 rounded-full"
               />
               <span className="text-lg font-bold text-white">NETTOOLZ</span>
             </Link>
