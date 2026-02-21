@@ -32,7 +32,7 @@ export function AdminSidebar() {
     <aside className="flex w-64 flex-col border-r border-border bg-[#0c4a6e] text-[#e0f2fe]">
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-[#075985] px-5 py-4">
-        <Image src="/images/logo.png" alt="NETTOOLZ" width={32} height={32} className="rounded-full" />
+        <Image src="/images/logo.png" alt="NETTOOLZ" width={32} height={32} className="rounded-full" style={{ width: 32, height: "auto" }} />
         <span className="font-bold text-white">NETTOOLZ Admin</span>
       </div>
 

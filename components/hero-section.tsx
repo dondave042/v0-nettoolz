@@ -74,6 +74,7 @@ export function HeroSection() {
                 width={280}
                 height={280}
                 className="relative drop-shadow-2xl"
+                style={{ width: 280, height: "auto" }}
                 priority
               />
             </div>

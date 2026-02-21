@@ -28,6 +28,7 @@ export function SiteHeader() {
             width={40}
             height={40}
             className="rounded-full"
+            style={{ width: 40, height: "auto" }}
           />
           <span className="font-[var(--font-heading)] text-xl font-bold tracking-tight text-foreground">
             NETTOOLZ

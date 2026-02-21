@@ -51,6 +51,7 @@ export default function AdminLoginPage() {
             width={80}
             height={80}
             className="mb-4 drop-shadow-2xl"
+            style={{ width: 80, height: "auto" }}
           />
           <h1 className="font-[var(--font-heading)] text-2xl font-bold text-white">
             NETTOOLZ Admin

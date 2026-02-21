@@ -16,6 +16,7 @@ export function SiteFooter() {
                 width={36}
                 height={36}
                 className="rounded-full"
+                style={{ width: 36, height: "auto" }}
               />
               <span className="text-lg font-bold text-white">NETTOOLZ</span>
             </Link>
