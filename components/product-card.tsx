@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ShoppingCart, Tag, Copy, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -21,11 +22,16 @@ interface Product {
 }
 
 export function ProductCard({ product }: { product: Product }) {
+  const router = useRouter()
   const inStock = product.available_qty > 0
   const [showCredentials, setShowCredentials] = useState(false)
   const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null)
   const [loadingCredentials, setLoadingCredentials] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  function handleCheckout() {
+    router.push(`/checkout?product_id=${product.id}`)
+  }
 
   async function fetchCredentials() {
     setLoadingCredentials(true)
@@ -109,12 +115,10 @@ export function ProductCard({ product }: { product: Product }) {
           <Button
             className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
             disabled={!inStock}
-            onClick={() => {
-              toast.success(`${product.name} added to cart!`)
-            }}
+            onClick={handleCheckout}
           >
             <ShoppingCart className="h-4 w-4" />
-            {inStock ? "Add to Cart" : "Sold Out"}
+            {inStock ? "Buy Now" : "Sold Out"}
           </Button>
           
           {/* Credentials Button */}
