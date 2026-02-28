@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Pencil, Trash2, Loader2, X } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, X, Upload, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
@@ -16,6 +16,9 @@ interface Product {
   badge: string | null
   is_featured: boolean
   category_name: string
+  images: string[] | null
+  product_username: string | null
+  product_password: string | null
 }
 
 interface Category {
@@ -32,6 +35,9 @@ const emptyForm = {
   category_id: "",
   badge: "",
   is_featured: false,
+  images: [] as string[],
+  product_username: "",
+  product_password: "",
 }
 
 export default function ProductsAdminPage() {
@@ -42,6 +48,7 @@ export default function ProductsAdminPage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const fetchProducts = useCallback(async () => {
     const res = await fetch("/api/admin/products")
@@ -75,9 +82,53 @@ export default function ProductsAdminPage() {
       category_id: p.category_id?.toString() || "",
       badge: p.badge || "",
       is_featured: p.is_featured,
+      images: p.images || [],
+      product_username: p.product_username || "",
+      product_password: p.product_password || "",
     })
     setEditId(p.id)
     setShowForm(true)
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files) return
+
+    setUploading(true)
+    const newImages: string[] = []
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const reader = new FileReader()
+
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            newImages.push(event.target.result as string)
+            if (newImages.length === files.length) {
+              setForm({
+                ...form,
+                images: [...(form.images || []), ...newImages],
+              })
+              setUploading(false)
+            }
+          }
+        }
+
+        reader.readAsDataURL(file)
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast.error("Failed to upload images")
+      setUploading(false)
+    }
+  }
+
+  function removeImage(index: number) {
+    setForm({
+      ...form,
+      images: form.images?.filter((_, i) => i !== index) || [],
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -195,6 +246,79 @@ export default function ProductsAdminPage() {
                     <input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="h-4 w-4 rounded border-border accent-[#38bdf8]" />
                     Featured Product
                   </label>
+                </div>
+              </div>
+
+              {/* Images Section */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-muted-foreground">Product Images</label>
+                <div className="flex flex-col gap-3">
+                  {form.images && form.images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {form.images.map((image, index) => (
+                        <div key={index} className="relative overflow-hidden rounded-lg border border-border bg-muted">
+                          <img src={image} alt={`Product ${index}`} className="h-24 w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-white hover:bg-destructive/90"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/50 py-4 px-3 text-sm text-muted-foreground hover:border-[#38bdf8] hover:text-foreground transition-colors">
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Click to upload images
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Credentials Section */}
+              <div className="border-t border-border pt-4">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">Buyer Credentials</h3>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  These will only be shown to buyers after successful purchase
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Username</label>
+                    <input
+                      value={form.product_username}
+                      onChange={(e) => setForm({ ...form, product_username: e.target.value })}
+                      placeholder="e.g. admin"
+                      className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Password</label>
+                    <input
+                      type="password"
+                      value={form.product_password}
+                      onChange={(e) => setForm({ ...form, product_password: e.target.value })}
+                      placeholder="e.g. secure_password"
+                      className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2">

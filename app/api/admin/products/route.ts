@@ -22,12 +22,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { sku, name, description, price, available_qty, category_id, badge, is_featured } = body
+    const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
 
     const sql = getDb()
     const result = await sql`
-      INSERT INTO products (sku, name, description, price, available_qty, category_id, badge, is_featured)
-      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${category_id || null}, ${badge || null}, ${is_featured || false})
+      INSERT INTO products (sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password)
+      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${product_username || null}, ${product_password || null})
       RETURNING *
     `
     return NextResponse.json(result[0], { status: 201 })
@@ -43,14 +43,18 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json()
-    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured } = body
+    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
 
     const sql = getDb()
     const result = await sql`
       UPDATE products
       SET sku = ${sku}, name = ${name}, description = ${description}, price = ${parseFloat(price)},
           available_qty = ${parseInt(available_qty)}, category_id = ${category_id || null},
-          badge = ${badge || null}, is_featured = ${is_featured || false}, updated_at = NOW()
+          badge = ${badge || null}, is_featured = ${is_featured || false}, 
+          images = ${images ? JSON.stringify(images) : null}, 
+          product_username = ${product_username || null}, 
+          product_password = ${product_password || null},
+          updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
     `
