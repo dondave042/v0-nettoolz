@@ -75,9 +75,9 @@ export async function buyerSignup(email: string, password: string, name: string)
 
     // Create new buyer
     const result = await sql`
-      INSERT INTO buyers (email, password_hash, name)
+      INSERT INTO buyers (email, password_hash, full_name)
       VALUES (${email}, ${passwordHash}, ${name})
-      RETURNING id, email, name
+      RETURNING id, email, full_name as name
     `
 
     const buyer = result[0]
@@ -97,7 +97,7 @@ export async function buyerLogin(email: string, password: string) {
     const passwordHash = Buffer.from(`${password}${email}`).toString('base64')
 
     const result = await sql`
-      SELECT id, email, name, password_hash FROM buyers WHERE email = ${email}
+      SELECT id, email, full_name as name, password_hash FROM buyers WHERE email = ${email}
     `
 
     if (result.length === 0) {
