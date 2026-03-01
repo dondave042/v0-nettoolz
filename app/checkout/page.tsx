@@ -1,19 +1,13 @@
 "use client"
 
 import { Suspense, useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2, ArrowLeft, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-
-interface Product {
-  id: number
-  name: string
-  price: string
-  description: string
-  images: string[] | null
-}
+import { useCart } from "@/lib/cart-context"
+import { formatPrice } from "@/lib/currency"
 
 interface PaymentMethod {
   id: number
@@ -21,103 +15,127 @@ interface PaymentMethod {
   description: string | null
 }
 
+interface BuyerSession {
+  id: number
+  email: string
+  name: string
+}
+
 function CheckoutContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const productId = searchParams.get("product_id")
-  const [product, setProduct] = useState<Product | null>(null)
+  const { items, clearCart } = useCart()
+  const [buyer, setBuyer] = useState<BuyerSession | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [completed, setCompleted] = useState(false)
 
   const [form, setForm] = useState({
-    quantity: 1,
     payment_method_id: "",
   })
 
   useEffect(() => {
-    if (!productId) {
-      router.push("/products")
-      return
+    // Check authentication
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/buyers/me')
+        if (!res.ok) {
+          router.push('/login?returnUrl=/checkout')
+          return
+        }
+        const data = await res.json()
+        setBuyer(data.buyer)
+        await fetchPaymentMethods()
+      } catch (error) {
+        console.error('[v0] Auth check error:', error)
+        router.push('/login?returnUrl=/checkout')
+      } finally {
+        setLoading(false)
+      }
     }
 
-    fetchData()
-  }, [productId])
+    checkAuth()
+  }, [router])
 
-  async function fetchData() {
-    setLoading(true)
+  // Check if cart is empty
+  if (!loading && items.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-secondary px-4">
+        <div className="w-full max-w-md space-y-4 text-center">
+          <h1 className="text-2xl font-bold text-foreground">Your cart is empty</h1>
+          <p className="text-muted-foreground">Add items to your cart before checking out</p>
+          <Button
+            onClick={() => router.push('/products')}
+            className="bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Products
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  async function fetchPaymentMethods() {
     try {
-      const [productRes, methodsRes] = await Promise.all([
-        fetch(`/api/admin/products/${productId}`),
-        fetch("/api/admin/payment-methods"),
-      ])
-
-      if (productRes.ok) {
-        const data = await productRes.json()
-        setProduct(data)
-      } else {
-        toast.error("Product not found")
-        router.push("/products")
-        return
-      }
-
-      if (methodsRes.ok) {
-        const data = await methodsRes.json()
-        const activeMethods = (data.methods || []).filter((m: PaymentMethod) => m.id)
-        setPaymentMethods(activeMethods)
-        if (activeMethods.length > 0) {
-          setForm((f) => ({ ...f, payment_method_id: activeMethods[0].id.toString() }))
+      const res = await fetch('/api/admin/payment-methods')
+      if (res.ok) {
+        const data = await res.json()
+        setPaymentMethods(data.methods || [])
+        if (data.methods && data.methods.length > 0) {
+          setForm((prev) => ({
+            ...prev,
+            payment_method_id: data.methods[0].id.toString(),
+          }))
         }
       }
     } catch (error) {
-      console.error("Fetch error:", error)
-      toast.error("Failed to load checkout data")
-    } finally {
-      setLoading(false)
+      console.error('[v0] Failed to fetch payment methods:', error)
+      toast.error('Failed to load payment methods')
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
 
+    if (!form.payment_method_id) {
+      toast.error('Please select a payment method')
+      return
+    }
+
+    setSubmitting(true)
     try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          product_id: parseInt(productId!),
-          quantity: form.quantity,
+          items: items.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+          })),
           payment_method_id: parseInt(form.payment_method_id),
         }),
       })
 
+      if (!res.ok) {
+        const error = await res.json()
+        toast.error(error.error || 'Checkout failed')
+        return
+      }
+
       const data = await res.json()
 
-      if (res.ok) {
-        // Simulate payment completion
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Clear cart on successful checkout
+      clearCart()
+      setCompleted(true)
 
-        const confirmRes = await fetch(`/api/orders/${data.order.id}/confirm-payment`, {
-          method: "POST",
-        })
-
-        if (confirmRes.ok) {
-          setCompleted(true)
-          toast.success("Purchase completed successfully!")
-          setTimeout(() => {
-            router.push("/my-purchases")
-          }, 2000)
-        } else {
-          toast.error("Failed to confirm payment")
-        }
-      } else {
-        toast.error(data.error || "Failed to create order")
-      }
+      // Redirect to success page after a delay
+      setTimeout(() => {
+        router.push('/my-purchases')
+      }, 2000)
     } catch (error) {
-      console.error("Checkout error:", error)
-      toast.error("An error occurred")
+      console.error('[v0] Checkout error:', error)
+      toast.error('An error occurred during checkout')
     } finally {
       setSubmitting(false)
     }
@@ -125,184 +143,149 @@ function CheckoutContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
       </div>
     )
   }
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <p className="text-muted-foreground">Product not found</p>
-          <Link href="/products" className="mt-4 inline-block text-[#38bdf8] hover:text-[#0ea5e9]">
-            Back to products
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  if (completed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="rounded-full bg-green-100 p-3">
-              <Check className="h-8 w-8 text-green-600" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Purchase Complete!</h1>
-          <p className="mt-2 text-muted-foreground">
-            Your credentials have been assigned. Redirecting to your purchases...
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  const total = parseFloat(product.price) * form.quantity
+  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="mx-auto max-w-2xl px-4">
-        <Link href="/products" className="mb-6 inline-flex items-center gap-2 text-[#38bdf8] hover:text-[#0ea5e9]">
-          <ArrowLeft className="h-4 w-4" />
-          Back to products
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary px-4 py-8">
+      <div className="mx-auto max-w-2xl">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-foreground">Checkout</h1>
+          <Button
+            variant="ghost"
+            onClick={() => router.back()}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Order Summary */}
-          <div className="md:col-span-2">
-            <div className="rounded-xl border border-border bg-card p-6">
-              <h1 className="text-2xl font-bold text-foreground">Checkout</h1>
+        {/* Success State */}
+        {completed && (
+          <div className="space-y-4 rounded-xl border border-green-200 bg-green-50 p-8 text-center dark:border-green-900 dark:bg-green-950">
+            <Check className="mx-auto h-12 w-12 text-green-600" />
+            <h2 className="text-xl font-bold text-foreground">Order Completed!</h2>
+            <p className="text-muted-foreground">
+              Your order has been placed successfully. Redirecting to your purchases...
+            </p>
+          </div>
+        )}
 
-              {/* Product Info */}
-              <div className="mt-6 rounded-lg border border-border p-4">
-                <div className="flex gap-4">
-                  {product.images && product.images.length > 0 && (
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      className="h-24 w-24 rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{product.name}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{product.description}</p>
-                    <p className="mt-2 text-lg font-bold text-[#38bdf8]">
-                      ${parseFloat(product.price).toFixed(2)}
-                    </p>
+        {!completed && (
+          <div className="grid gap-8 md:grid-cols-3">
+            {/* Cart Summary */}
+            <div className="md:col-span-2 space-y-6">
+              {/* Order Items */}
+              <div className="space-y-4 rounded-xl border border-border bg-card p-6">
+                <h2 className="text-lg font-semibold text-foreground">Order Summary</h2>
+                <div className="space-y-3">
+                  {items.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{item.productName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Quantity: {item.quantity}
+                        </p>
+                      </div>
+                      <p className="font-semibold text-foreground">
+                        {formatPrice(item.price * item.quantity)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment Method Selection */}
+              <div className="space-y-4 rounded-xl border border-border bg-card p-6">
+                <h2 className="text-lg font-semibold text-foreground">Payment Method</h2>
+                {paymentMethods.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No payment methods available. Please contact support.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {paymentMethods.map((method) => (
+                      <label
+                        key={method.id}
+                        className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-secondary transition-colors"
+                      >
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          value={method.id}
+                          checked={form.payment_method_id === method.id.toString()}
+                          onChange={(e) =>
+                            setForm({ ...form, payment_method_id: e.target.value })
+                          }
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{method.name}</p>
+                          {method.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {method.description}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                </div>
-              </div>
-
-              {/* Quantity */}
-              <div className="mt-6 rounded-lg border border-border p-4">
-                <label className="block text-sm font-medium text-foreground">Quantity</label>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        quantity: Math.max(1, f.quantity - 1),
-                      }))
-                    }
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-foreground hover:bg-muted"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    value={form.quantity}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        quantity: Math.max(1, parseInt(e.target.value) || 1),
-                      }))
-                    }
-                    min="1"
-                    className="w-16 rounded-lg border border-border bg-background px-3 py-2 text-center text-foreground"
-                  />
-                  <button
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        quantity: f.quantity + 1,
-                      }))
-                    }
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-foreground hover:bg-muted"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div className="mt-6 rounded-lg border border-border p-4">
-                <label className="block text-sm font-medium text-foreground">Payment Method</label>
-                <select
-                  value={form.payment_method_id}
-                  onChange={(e) => setForm({ ...form, payment_method_id: e.target.value })}
-                  className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:border-[#38bdf8] focus:outline-none"
-                >
-                  {paymentMethods.length === 0 ? (
-                    <option disabled>No payment methods available</option>
-                  ) : (
-                    paymentMethods.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                        {m.description ? ` - ${m.description}` : ""}
-                      </option>
-                    ))
-                  )}
-                </select>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Order Total */}
-          <div>
-            <div className="sticky top-8 rounded-xl border border-border bg-card p-6">
-              <h2 className="font-semibold text-foreground">Order Summary</h2>
-
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
+            {/* Order Total */}
+            <div className="h-fit space-y-4 rounded-xl border border-border bg-card p-6">
+              <h3 className="text-lg font-semibold text-foreground">Total</h3>
+              <div className="space-y-2 border-t border-border pt-4">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="text-foreground">
-                    ${parseFloat(product.price).toFixed(2)} × {form.quantity}
-                  </span>
+                  <span className="text-foreground">{formatPrice(totalPrice)}</span>
                 </div>
-                <div className="border-t border-border pt-2">
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-foreground">Total</span>
-                    <span className="text-lg text-[#38bdf8]">${total.toFixed(2)}</span>
-                  </div>
+                <div className="flex justify-between border-t border-border pt-2 font-bold text-lg">
+                  <span className="text-foreground">Total</span>
+                  <span className="text-[#38bdf8]">{formatPrice(totalPrice)}</span>
                 </div>
               </div>
 
-              <Button
-                onClick={handleSubmit}
-                disabled={submitting || paymentMethods.length === 0}
-                className="mt-6 w-full bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Complete Purchase"
-                )}
-              </Button>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Button
+                  type="submit"
+                  disabled={submitting || paymentMethods.length === 0}
+                  className="w-full bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Place Order'
+                  )}
+                </Button>
+                <Link href="/products" className="block">
+                  <Button variant="outline" className="w-full">
+                    Continue Shopping
+                  </Button>
+                </Link>
+              </form>
 
-              <p className="mt-3 text-xs text-muted-foreground text-center">
-                Credentials will be assigned immediately after payment confirmation
+              <p className="text-xs text-muted-foreground text-center">
+                By placing an order, you agree to our terms and conditions
               </p>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
