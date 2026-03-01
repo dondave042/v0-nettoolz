@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { ShoppingCart, Tag, Copy, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { useCart } from "@/lib/cart-context"
+import { formatPrice } from "@/lib/currency"
 
 interface Product {
   id: number
@@ -23,14 +25,31 @@ interface Product {
 
 export function ProductCard({ product }: { product: Product }) {
   const router = useRouter()
+  const { addItem } = useCart()
   const inStock = product.available_qty > 0
   const [showCredentials, setShowCredentials] = useState(false)
   const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null)
   const [loadingCredentials, setLoadingCredentials] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  function handleCheckout() {
-    router.push(`/checkout?product_id=${product.id}`)
+  async function handleAddToCart() {
+    // Check if buyer is logged in
+    const res = await fetch('/api/buyers/me')
+    if (!res.ok) {
+      toast.error('Please sign in to add items to cart')
+      router.push('/login')
+      return
+    }
+
+    const price = parseFloat(product.price)
+    addItem({
+      productId: product.id,
+      productName: product.name,
+      price,
+      quantity: 1,
+      image: product.images?.[0] || null,
+    })
+    toast.success(`${product.name} added to cart!`)
   }
 
   async function fetchCredentials() {
@@ -103,7 +122,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="flex items-center justify-between">
           <div>
             <span className="text-2xl font-bold text-[#0284c7]">
-              ${parseFloat(product.price).toFixed(2)}
+              {formatPrice(parseFloat(product.price))}
             </span>
             <span className="ml-2 text-xs text-muted-foreground">
               {inStock ? `${product.available_qty} in stock` : "Out of stock"}
@@ -115,10 +134,10 @@ export function ProductCard({ product }: { product: Product }) {
           <Button
             className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
             disabled={!inStock}
-            onClick={handleCheckout}
+            onClick={handleAddToCart}
           >
             <ShoppingCart className="h-4 w-4" />
-            {inStock ? "Buy Now" : "Sold Out"}
+            {inStock ? "Add to Cart" : "Sold Out"}
           </Button>
           
           {/* Credentials Button */}
