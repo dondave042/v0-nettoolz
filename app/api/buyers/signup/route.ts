@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { buyerSignup } from '@/lib/buyer-auth'
+import { createBuyerToken, setBuyerCookie } from '@/lib/buyer-auth'
+import { getDb } from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
@@ -19,19 +20,49 @@ export async function POST(request: Request) {
       )
     }
 
-    const result = await buyerSignup(email, password, name)
+    const sql = getDb()
 
-    if (!result.success) {
+    // Check if buyer already exists
+    const existing = await sql`
+      SELECT id FROM buyers WHERE email = ${email}
+    `
+
+    if (existing.length > 0) {
       return NextResponse.json(
-        { error: result.error },
+        { error: 'Email already registered' },
         { status: 400 }
       )
     }
 
-    return NextResponse.json(
-      { success: true, buyer: result.buyer },
+    // Hash password
+    const passwordHash = Buffer.from(`${password}${email}`).toString('base64')
+
+    // Create new buyer
+    const result = await sql`
+      INSERT INTO buyers (email, password_hash, full_name)
+      VALUES (${email}, ${passwordHash}, ${name})
+      RETURNING id, email, full_name as name
+    `
+
+    const buyer = result[0]
+    const token = await createBuyerToken(buyer)
+
+    // Create response with cookie
+    const response = NextResponse.json(
+      { success: true, buyer },
       { status: 201 }
     )
+
+    // Set cookie in response
+    response.cookies.set('buyer_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    })
+
+    return response
   } catch (error) {
     console.error('Signup error:', error)
     return NextResponse.json(
