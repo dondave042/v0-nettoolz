@@ -1,51 +1,82 @@
-import React from 'react';
-import './UserDashboard.css';
+import React, { useEffect, useState } from 'react';
+import { formatCurrency } from '../utils'; // Utility function to format the currency
 
-const UserDashboard = () => {
+const UserDashboard: React.FC = () => {
+    const [orders, setOrders] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredOrders, setFilteredOrders] = useState([]);
+    
+    useEffect(() => {
+        // Fetch orders and other data from API or state management
+        const fetchData = async () => {
+            // Placeholder fetch, replace with real data source
+            const response = await fetch('/api/orders');
+            const data = await response.json();
+            setOrders(data);
+        };
+        fetchData();
+    }, []);
+    
+    useEffect(() => {
+        // Filter orders based on the search term
+        setFilteredOrders(
+            orders.filter(order => 
+                order.id.includes(searchTerm) ||
+                order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        );
+    }, [searchTerm, orders]);
+    
     return (
-        <div className="user-dashboard">
-            <header className="dashboard-header">
-                <h1>Total Orders: 100</h1>
-                <input type="text" placeholder="Search..." className="search-input" />
+        <div className="p-4">
+            <header className="flex justify-between items-center mb-4">
+                <h1 className="text-xl font-bold">User Dashboard</h1>
+                <div className="flex flex-col items-end">
+                    <div>Total Orders: {orders.length}</div>
+                    <div>Total Spent: {formatCurrency(orders.reduce((acc, order) => acc + order.amount, 0))}</div>
+                </div>
             </header>
-            <section className="orders-table">
-                <h2>Orders</h2>
-                <table>
+            <input
+                type="text"
+                placeholder="Search orders..."
+                className="border p-2 mb-4 w-full"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+            />
+            <table className="min-w-full border">
+                <thead>
+                    <tr>
+                        <th className="border-b p-2">Order ID</th>
+                        <th className="border-b p-2">Customer Name</th>
+                        <th className="border-b p-2">Amount</th>
+                        <th className="border-b p-2">Payment Method</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filteredOrders.map(order => (
+                        <tr key={order.id} className="border-b">
+                            <td className="p-2">{order.id}</td>
+                            <td className="p-2">{order.customerName}</td>
+                            <td className="p-2">{formatCurrency(order.amount)}</td>
+                            <td className="p-2">{order.paymentMethod}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            <div className="mt-4">
+                <h2 className="text-lg font-semibold">Recent Deposits</h2>
+                <table className="min-w-full border">
                     <thead>
                         <tr>
-                            <th>Order ID</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Total</th>
+                            <th className="border-b p-2">Date</th>
+                            <th className="border-b p-2">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>#1234</td>
-                            <td>2026-03-15</td>
-                            <td>Completed</td>
-                            <td>$100</td>
-                        </tr>
-                        <!-- More rows as needed -->
+                        {/* Placeholder for recent deposits data */}
                     </tbody>
                 </table>
-            </section>
-            <section className="payment-methods">
-                <h2>Payment Methods</h2>
-                <ul>
-                    <li>Credit Card</li>
-                    <li>PayPal</li>
-                    <!-- Add more payment methods as needed -->
-                </ul>
-            </section>
-            <section className="recent-deposits">
-                <h2>Recent Deposits</h2>
-                <ul>
-                    <li>$200 on 2026-03-17</li>
-                    <li>$150 on 2026-03-16</li>
-                    <!-- More deposits as needed -->
-                </ul>
-            </section>
+            </div>
         </div>
     );
 };
