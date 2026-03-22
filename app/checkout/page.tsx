@@ -103,36 +103,65 @@ function CheckoutContent() {
       return
     }
 
+    if (!buyer) {
+      toast.error('User information not available')
+      return
+    }
+
     setSubmitting(true)
     try {
-      const res = await fetch('/api/checkout', {
+      // Step 1: Create order
+      const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+      
+      const checkoutRes = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map((item) => ({
-            product_id: item.productId,
-            quantity: item.quantity,
-          })),
+          product_id: items[0]?.productId,
+          quantity: items.reduce((sum, item) => sum + item.quantity, 0),
           payment_method_id: parseInt(form.payment_method_id),
         }),
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        toast.error(error.error || 'Checkout failed')
+      if (!checkoutRes.ok) {
+        const error = await checkoutRes.json()
+        toast.error(error.error || 'Failed to create order')
         return
       }
 
-      const data = await res.json()
+      const orderData = await checkoutRes.json()
+      const orderId = orderData.order.id
 
-      // Clear cart on successful checkout
+      // Step 2: Initialize payment with Korapay
+      const paymentRes = await fetch('/api/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderId,
+          amount: totalPrice,
+          currency: 'NGN',
+          email: buyer.email,
+        }),
+      })
+
+      if (!paymentRes.ok) {
+        const error = await paymentRes.json()
+        toast.error(error.error || 'Failed to initialize payment')
+        return
+      }
+
+      const paymentData = await paymentRes.json()
+
+      if (!paymentData.checkout_url) {
+        toast.error('Payment URL not available')
+        return
+      }
+
+      // Clear cart before redirecting to payment
       clearCart()
-      setCompleted(true)
 
-      // Redirect to success page after a delay
-      setTimeout(() => {
-        router.push('/my-purchases')
-      }, 2000)
+      // Redirect to Korapay checkout
+      window.location.href = paymentData.checkout_url
     } catch (error) {
       console.error('[v0] Checkout error:', error)
       toast.error('An error occurred during checkout')

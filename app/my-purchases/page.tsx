@@ -16,6 +16,9 @@ interface Order {
   status: string
   payment_method_name: string
   created_at: string
+  payment_status: string
+  payment_reference_id?: string
+  payment_error_message?: string
 }
 
 interface Credential {
@@ -60,9 +63,9 @@ export default function MyPurchasesPage() {
         const data = await res.json()
         setOrders(data.orders || [])
 
-        // Fetch credentials for each order
+        // Fetch credentials for each order that has completed payment
         for (const order of data.orders || []) {
-          if (order.status === "completed") {
+          if (order.payment_status === "completed") {
             fetchOrderCredentials(order.id, order.product_id)
           }
         }
@@ -169,16 +172,26 @@ export default function MyPurchasesPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground">Status</p>
+                      <p className="text-xs font-medium text-muted-foreground">Payment Status</p>
                       <div className="mt-1">
                         <span
                           className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                            order.status === "completed"
+                            order.payment_status === "completed"
                               ? "bg-green-100 text-green-700"
+                              : order.payment_status === "failed"
+                              ? "bg-red-100 text-red-700"
+                              : order.payment_status === "cancelled"
+                              ? "bg-orange-100 text-orange-700"
                               : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
-                          {order.status === "completed" ? "Completed" : "Pending"}
+                          {order.payment_status === "completed"
+                            ? "Paid"
+                            : order.payment_status === "failed"
+                            ? "Failed"
+                            : order.payment_status === "cancelled"
+                            ? "Cancelled"
+                            : "Pending"}
                         </span>
                       </div>
                     </div>
@@ -205,59 +218,35 @@ export default function MyPurchasesPage() {
                   </div>
                 </div>
 
-                {/* Credentials */}
-                {order.status === "completed" && credentials[order.id] && (
-                  <div className="border-t border-border bg-muted/30 p-4">
-                    <h4 className="font-semibold text-foreground mb-3">Access Credentials</h4>
-                    <div className="space-y-3">
-                      {credentials[order.id].map((cred, index) => (
-                        <div key={index} className="rounded-lg border border-border bg-background p-3">
-                          {cred.username && (
-                            <div className="mb-2">
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Username</p>
-                              <div className="flex items-center justify-between gap-2">
-                                <code className="flex-1 rounded bg-muted/50 px-2 py-1 text-sm font-mono text-foreground">
-                                  {cred.username}
-                                </code>
-                                <button
-                                  onClick={() => copyToClipboard(cred.username, "Username")}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Copy"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                {/* Payment Error Message */}
+                {order.payment_status === "failed" && order.payment_error_message && (
+                  <div className="border-t border-border bg-red-50 dark:bg-red-950 p-4">
+                    <p className="text-sm font-medium text-red-900 dark:text-red-100">
+                      Payment Failed: {order.payment_error_message}
+                    </p>
+                    <p className="text-xs text-red-800 dark:text-red-200 mt-1">
+                      Please try placing a new order to complete your purchase.
+                    </p>
+                  </div>
+                )}
 
-                          {cred.password && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Password</p>
-                              <div className="flex items-center justify-between gap-2">
-                                <code className="flex-1 rounded bg-muted/50 px-2 py-1 text-sm font-mono text-foreground">
-                                  {showPasswords[`${order.id}-${index}`]
-                                    ? cred.password
-                                    : "•".repeat(cred.password.length)}
-                                </code>
-                                <div className="flex gap-1">
+                {/* Credentials - Only show if payment is completed */}
+                {order.payment_status === "completed" ? (
+                  credentials[order.id] ? (
+                    <div className="border-t border-border bg-muted/30 p-4">
+                      <h4 className="font-semibold text-foreground mb-3">Access Credentials</h4>
+                      <div className="space-y-3">
+                        {credentials[order.id].map((cred, index) => (
+                          <div key={index} className="rounded-lg border border-border bg-background p-3">
+                            {cred.username && (
+                              <div className="mb-2">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Username</p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <code className="flex-1 rounded bg-muted/50 px-2 py-1 text-sm font-mono text-foreground">
+                                    {cred.username}
+                                  </code>
                                   <button
-                                    onClick={() =>
-                                      setShowPasswords((prev) => ({
-                                        ...prev,
-                                        [`${order.id}-${index}`]: !prev[`${order.id}-${index}`],
-                                      }))
-                                    }
-                                    className="text-muted-foreground hover:text-foreground"
-                                    title="Show/Hide"
-                                  >
-                                    {showPasswords[`${order.id}-${index}`] ? (
-                                      <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                      <Eye className="h-4 w-4" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => copyToClipboard(cred.password, "Password")}
+                                    onClick={() => copyToClipboard(cred.username, "Username")}
                                     className="text-muted-foreground hover:text-foreground"
                                     title="Copy"
                                   >
@@ -265,13 +254,64 @@ export default function MyPurchasesPage() {
                                   </button>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            )}
+
+                            {cred.password && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Password</p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <code className="flex-1 rounded bg-muted/50 px-2 py-1 text-sm font-mono text-foreground">
+                                    {showPasswords[`${order.id}-${index}`]
+                                      ? cred.password
+                                      : "•".repeat(cred.password.length)}
+                                  </code>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() =>
+                                        setShowPasswords((prev) => ({
+                                          ...prev,
+                                          [`${order.id}-${index}`]: !prev[`${order.id}-${index}`],
+                                        }))
+                                      }
+                                      className="text-muted-foreground hover:text-foreground"
+                                      title="Show/Hide"
+                                    >
+                                      {showPasswords[`${order.id}-${index}`] ? (
+                                        <EyeOff className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => copyToClipboard(cred.password, "Password")}
+                                      className="text-muted-foreground hover:text-foreground"
+                                      title="Copy"
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  ) : (
+                    <div className="border-t border-border bg-muted/30 p-4">
+                      <p className="text-sm text-muted-foreground">Credentials are being prepared. Please refresh in a moment.</p>
+                    </div>
+                  )
+                ) : order.payment_status === "pending" ? (
+                  <div className="border-t border-border bg-blue-50 dark:bg-blue-950 p-4">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Waiting for payment confirmation...
+                    </p>
+                    <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
+                      Your credentials will be available once the payment is confirmed.
+                    </p>
                   </div>
-                )}
+                ) : null}
               </div>
             ))}
           </div>
