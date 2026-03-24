@@ -1,18 +1,20 @@
-import { sql } from '@vercel/postgres'
+import { neon } from '@neondatabase/serverless'
+
+const sql = neon(process.env.DATABASE_URL)
 
 async function seedPaymentMethods() {
   console.log('[Payment Methods] Starting payment methods seeding...')
 
   try {
     // Check if payment methods table exists
-    const tableExists = await sql`
+    const tableCheck = await sql`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
         WHERE table_name = 'payment_methods'
       )
     `
 
-    if (!tableExists.rows[0].exists) {
+    if (!tableCheck[0].exists) {
       console.error('[Payment Methods] payment_methods table does not exist')
       process.exit(1)
     }
@@ -20,37 +22,39 @@ async function seedPaymentMethods() {
     // Check if Korapay method already exists
     const existing = await sql`
       SELECT id FROM payment_methods 
-      WHERE provider = 'korapay' AND name = 'Korapay'
+      WHERE type = 'korapay' AND name = 'Korapay'
       LIMIT 1
     `
 
-    if (existing.rows.length > 0) {
+    if (existing.length > 0) {
       console.log('[Payment Methods] Korapay payment method already exists')
       return
     }
 
-    // Insert default Korapay payment method
+    // Insert default Korapay payment method with JSONB config
     const result = await sql`
       INSERT INTO payment_methods (
         name,
-        provider,
-        description,
+        type,
+        config,
         is_active,
+        sort_order,
         created_at,
         updated_at
       )
       VALUES (
         'Korapay',
         'korapay',
-        'Pay securely using Korapay payment gateway',
+        '{"displayName": "Korapay", "description": "Pay securely using Korapay payment gateway", "icon": "korapay"}'::jsonb,
         true,
+        1,
         NOW(),
         NOW()
       )
-      RETURNING id, name, provider, is_active
+      RETURNING id, name, type, is_active
     `
 
-    const method = result.rows[0]
+    const method = result[0]
     console.log(
       `[Payment Methods] Successfully seeded Korapay payment method (ID: ${method.id})`
     )
@@ -59,40 +63,44 @@ async function seedPaymentMethods() {
     const additionalMethods = [
       {
         name: 'Paystack',
-        provider: 'paystack',
-        description: 'Pay with Paystack',
-        active: false, // Disabled for now
+        type: 'paystack',
+        config: { displayName: 'Paystack', description: 'Pay with Paystack', icon: 'paystack' },
+        active: false,
+        sort: 2,
       },
       {
         name: 'Flutterwave',
-        provider: 'flutterwave',
-        description: 'Pay with Flutterwave',
-        active: false, // Disabled for now
+        type: 'flutterwave',
+        config: { displayName: 'Flutterwave', description: 'Pay with Flutterwave', icon: 'flutterwave' },
+        active: false,
+        sort: 3,
       },
     ]
 
     for (const method of additionalMethods) {
-      const existing = await sql`
+      const exists = await sql`
         SELECT id FROM payment_methods 
-        WHERE provider = ${method.provider}
+        WHERE type = ${method.type}
         LIMIT 1
       `
 
-      if (existing.rows.length === 0) {
+      if (exists.length === 0) {
         await sql`
           INSERT INTO payment_methods (
             name,
-            provider,
-            description,
+            type,
+            config,
             is_active,
+            sort_order,
             created_at,
             updated_at
           )
           VALUES (
             ${method.name},
-            ${method.provider},
-            ${method.description},
+            ${method.type},
+            ${JSON.stringify(method.config)}::jsonb,
             ${method.active},
+            ${method.sort},
             NOW(),
             NOW()
           )

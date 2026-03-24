@@ -12,7 +12,8 @@ import { formatPrice } from "@/lib/currency"
 interface PaymentMethod {
   id: number
   name: string
-  description: string | null
+  type: string
+  config: Record<string, unknown> | null
 }
 
 interface BuyerSession {
@@ -78,7 +79,7 @@ function CheckoutContent() {
 
   async function fetchPaymentMethods() {
     try {
-      const res = await fetch('/api/admin/payment-methods')
+      const res = await fetch('/api/payment-methods')
       if (res.ok) {
         const data = await res.json()
         setPaymentMethods(data.methods || [])
@@ -88,6 +89,8 @@ function CheckoutContent() {
             payment_method_id: data.methods[0].id.toString(),
           }))
         }
+      } else {
+        toast.error('No payment methods available')
       }
     } catch (error) {
       console.error('[v0] Failed to fetch payment methods:', error)
