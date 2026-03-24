@@ -8,12 +8,14 @@ import {
   Megaphone,
   LogOut,
   Home,
+  CreditCard,
 } from "lucide-react"
 import { toast } from "sonner"
 
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
 ]
 
