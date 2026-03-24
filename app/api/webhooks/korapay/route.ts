@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { db } from '@/lib/db';
-import { PaymentConfig } from '@/lib/payment-config';
+import { getDb } from '@/lib/db';
+import { getPaymentConfig, validateWebhookSignature } from '@/lib/payment-config';
 import { PaymentStatus } from '@/lib/payment-status';
 import {
   PaymentWebhookError,
@@ -218,12 +218,12 @@ async function handlePaymentCancelled(
 }
 
 export async function POST(request: NextRequest) {
-  const config = PaymentConfig.getInstance();
-
   try {
-    // Validate configuration
-    if (!config.isValid()) {
-      console.error('[Webhook] Payment configuration is invalid');
+    let config;
+    try {
+      config = getPaymentConfig();
+    } catch (error) {
+      console.error('[Webhook] Payment configuration is invalid:', error);
       return NextResponse.json(
         { error: 'Server configuration error' },
         { status: 500 }
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
       const isValid = validateSignature(
         body,
         signature,
-        config.getWebhookSecret()
+        config.korapayWebhookSecret
       );
 
       if (!isValid) {
