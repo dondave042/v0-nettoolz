@@ -3,7 +3,7 @@
  * Validates payment configuration and other critical setup on app startup
  */
 
-import { PaymentConfig } from './payment-config'
+import { initializePaymentConfig } from './payment-config'
 
 let initializationComplete = false
 let initializationError: Error | null = null
@@ -25,19 +25,7 @@ export async function initializeApp(): Promise<boolean> {
     console.log('[App Init] Starting application initialization...')
 
     // Validate payment configuration
-    const paymentConfig = PaymentConfig.getInstance()
-    
-    if (!paymentConfig.isValid()) {
-      const missingVars = paymentConfig.getMissingVariables()
-      console.error('[App Init] Payment configuration is invalid')
-      console.error('[App Init] Missing environment variables:', missingVars)
-      
-      const error = new Error(
-        `Missing required payment configuration: ${missingVars.join(', ')}`
-      )
-      initializationError = error
-      throw error
-    }
+    await initializePaymentConfig()
 
     console.log('[App Init] Payment configuration validated successfully')
 

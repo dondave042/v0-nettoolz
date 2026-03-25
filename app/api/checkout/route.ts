@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getBuyerSession } from '@/lib/buyer-auth'
 import { getDb } from '@/lib/db'
-import { PaymentConfig } from '@/lib/payment-config'
+import { getPaymentConfig } from '@/lib/payment-config'
 import { PaymentStatus } from '@/lib/payment-status'
 import {
   PaymentConfigError,
@@ -18,9 +18,11 @@ export async function POST(request: Request) {
 
   try {
     // Validate payment configuration
-    const config = PaymentConfig.getInstance()
-    if (!config.isValid()) {
-      console.error('[Checkout] Payment configuration is invalid')
+    try {
+      const config = getPaymentConfig()
+      console.log('[Checkout] Payment configuration validated')
+    } catch (error) {
+      console.error('[Checkout] Payment configuration is invalid:', error)
       throw new PaymentConfigError(
         'Payment system is not properly configured'
       )

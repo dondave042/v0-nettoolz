@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getBuyerSession } from '@/lib/buyer-auth'
 import { getDb } from '@/lib/db'
-import { PaymentConfig } from '@/lib/payment-config'
+import { getPaymentConfig } from '@/lib/payment-config'
 import {
   PaymentConfigError,
   PaymentAPIError,
@@ -28,9 +28,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const config = PaymentConfig.getInstance()
-    if (!config.isValid()) {
-      console.error('[Payment] Payment configuration is invalid')
+    let config
+    try {
+      config = getPaymentConfig()
+    } catch (error) {
+      console.error('[Payment] Payment configuration is invalid:', error)
       throw new PaymentConfigError(
         'Payment system is not properly configured. Please contact support.'
       )
@@ -80,12 +82,12 @@ export async function POST(request: Request) {
 
     try {
       const korapayResponse = await fetch(
-        `${config.getApiUrl()}/charges/initialize`,
+        `${config.korapayCheckoutUrl}/charges/initialize`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${config.getSecretKey()}`,
+            Authorization: `Bearer ${config.korapayApiKeySecret}`,
           },
           body: JSON.stringify({
             amount: Math.round(amount * 100), // Convert to cents
