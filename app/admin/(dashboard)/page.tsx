@@ -1,7 +1,9 @@
 import { getDb } from "@/lib/db"
-import { Package, FolderOpen, ShoppingCart, Megaphone, Archive, CreditCard, TrendingUp } from "lucide-react"
+import { Package, FolderOpen, ShoppingCart, Megaphone, Archive, CreditCard, TrendingUp, DollarSign } from "lucide-react"
 import { PaymentMethodCard } from "@/components/admin/payment-method-card"
 import { PaymentsOverview } from "@/components/admin/payments-overview"
+import { StatCard } from "@/components/dashboard/stat-card"
+import { DashboardHeader } from "@/components/dashboard/header"
 
 export default async function AdminDashboardPage() {
   const sql = getDb()
@@ -28,78 +30,73 @@ export default async function AdminDashboardPage() {
     ORDER BY p.created_at DESC LIMIT 5
   `
 
-  const stats = [
-    { label: "Products", value: products.count, icon: Package, color: "bg-[#38bdf8]" },
-    { label: "Categories", value: categories.count, icon: FolderOpen, color: "bg-[#0ea5e9]" },
-    { label: "Orders", value: orders.count, icon: ShoppingCart, color: "bg-[#0284c7]" },
-    { label: "Announcements", value: announcements.count, icon: Megaphone, color: "bg-[#7dd3fc]" },
-    { label: "Total Stock", value: totalStock.total, icon: Archive, color: "bg-[#0c4a6e]" },
-  ]
-
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-[var(--font-heading)] text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Welcome back to your NETTOOLZ admin panel</p>
-      </div>
+      <DashboardHeader
+        title="Admin Dashboard"
+        description="Welcome back! Monitor your business metrics and manage payment operations."
+      />
 
-      {/* Stats Grid */}
+      {/* Key Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
-          >
-            <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${color} text-white`}>
-              <Icon className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{value}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
-            </div>
-          </div>
-        ))}
+        <StatCard
+          label="Total Products"
+          value={products.count}
+          icon={Package}
+          color="cyan"
+          description="Available products"
+        />
+        <StatCard
+          label="Categories"
+          value={categories.count}
+          icon={FolderOpen}
+          color="blue"
+          description="Product categories"
+        />
+        <StatCard
+          label="Total Orders"
+          value={orders.count}
+          icon={ShoppingCart}
+          color="cyan"
+          description="Transactions"
+        />
+        <StatCard
+          label="Active Announcements"
+          value={announcements.count}
+          icon={Megaphone}
+          color="purple"
+          description="Published"
+        />
+        <StatCard
+          label="Total Stock"
+          value={totalStock.total}
+          icon={Archive}
+          color="green"
+          description="Units in inventory"
+        />
       </div>
 
-      {/* Payment Method & Overview Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Payment Method Card - Takes 1 column on large screens */}
-        <div className="lg:col-span-1">
-          <PaymentMethodCard />
-        </div>
-        
-        {/* Payment Summary Cards - Takes 2 columns on large screens */}
-        <div className="lg:col-span-2">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
-                  <p className="mt-2 text-2xl font-bold text-green-600">
-                    ₦{paymentStats.total_revenue ? parseFloat(paymentStats.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {paymentStats.completed_count} completed transactions
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Payment Status</p>
-                  <p className="mt-2 text-2xl font-bold text-[#38bdf8]">
-                    {paymentStats.total_transactions}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {paymentStats.pending_count} pending payments
-                  </p>
-                </div>
-                <CreditCard className="h-8 w-8 text-[#38bdf8]" />
-              </div>
-            </div>
+      {/* Payment Section */}
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-foreground">Payment Overview</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label="Total Revenue"
+            value={`₦${paymentStats.total_revenue ? parseFloat(paymentStats.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`}
+            icon={DollarSign}
+            color="green"
+            description={`${paymentStats.completed_count} completed transactions`}
+            trend={{ direction: "up", percentage: 12 }}
+          />
+          <StatCard
+            label="Total Transactions"
+            value={paymentStats.total_transactions}
+            icon={CreditCard}
+            color="cyan"
+            description={`${paymentStats.pending_count} pending payments`}
+          />
+          <div className="lg:col-span-1">
+            <PaymentMethodCard />
           </div>
         </div>
       </div>

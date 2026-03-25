@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, LogOut, Copy, Eye, EyeOff } from "lucide-react"
+import { Loader2, LogOut, Copy, Eye, EyeOff, Package, CheckCircle2, AlertCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { DashboardHeader } from "@/components/dashboard/header"
 import { toast } from "sonner"
 
 interface Order {
@@ -123,17 +124,17 @@ export default function MyPurchasesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="mx-auto max-w-4xl px-4">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">My Purchases</h1>
-            <p className="mt-1 text-muted-foreground">View your orders and credentials</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 py-8">
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <DashboardHeader
+            title="My Purchases"
+            description="View and manage your purchased accounts and credentials"
+          />
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <LogOut className="h-4 w-4" />
             Logout
@@ -141,114 +142,106 @@ export default function MyPurchasesPage() {
         </div>
 
         {orders.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
-            <p className="text-muted-foreground">You haven't made any purchases yet</p>
-            <Link
-              href="/products"
-              className="mt-4 inline-block rounded-lg bg-[#38bdf8] px-6 py-2 text-white hover:bg-[#0ea5e9]"
-            >
-              Browse Products
+          <div className="rounded-xl border-2 border-dashed border-border bg-secondary/30 p-12 text-center">
+            <Package className="mx-auto mb-4 h-12 w-12 text-muted-foreground opacity-50" />
+            <p className="text-lg font-medium text-muted-foreground">You haven't made any purchases yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">Get started by browsing our premium accounts collection</p>
+            <Link href="/products">
+              <Button className="mt-6 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]">
+                Browse Products
+              </Button>
             </Link>
           </div>
         ) : (
           <div className="space-y-6">
-            {orders.map((order) => (
-              <div key={order.id} className="rounded-xl border border-border bg-card overflow-hidden">
+            {orders.map((order) => {
+              const statusConfig = {
+                completed: { icon: CheckCircle2, color: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400", label: "Paid" },
+                failed: { icon: AlertCircle, color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400", label: "Failed" },
+                cancelled: { icon: AlertCircle, color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400", label: "Cancelled" },
+                pending: { icon: Clock, color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400", label: "Pending" },
+              }
+              const status = statusConfig[order.payment_status as keyof typeof statusConfig] || statusConfig.pending
+              const StatusIcon = status.icon
+              
+              return (
+              <div key={order.id} className="group rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden">
                 {/* Order Header */}
-                <div className="border-b border-border bg-muted/50 p-4">
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Order ID</p>
-                      <p className="mt-1 text-sm font-mono text-foreground">#{order.id}</p>
+                <div className="border-b border-border bg-gradient-to-r from-secondary/30 to-transparent p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-lg p-2.5 ${status.color}`}>
+                        <StatusIcon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">Order #{order.id}</p>
+                        <p className="text-sm font-semibold text-foreground">{order.product_name}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Product</p>
-                      <p className="mt-1 text-sm font-medium text-foreground">{order.product_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Amount</p>
-                      <p className="mt-1 text-sm font-medium text-[#38bdf8]">
-                        ${parseFloat(order.total_price).toFixed(2)}
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-[#38bdf8]">
+                        ₦{parseFloat(order.total_price).toLocaleString()}
+                      </p>
+                      <p className={`inline-block mt-1 rounded-full px-3 py-1 text-xs font-medium ${status.color}`}>
+                        {status.label}
                       </p>
                     </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3 text-sm">
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground">Payment Status</p>
-                      <div className="mt-1">
-                        <span
-                          className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                            order.payment_status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : order.payment_status === "failed"
-                              ? "bg-red-100 text-red-700"
-                              : order.payment_status === "cancelled"
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {order.payment_status === "completed"
-                            ? "Paid"
-                            : order.payment_status === "failed"
-                            ? "Failed"
-                            : order.payment_status === "cancelled"
-                            ? "Cancelled"
-                            : "Pending"}
-                        </span>
-                      </div>
+                      <p className="text-xs font-medium text-muted-foreground">Payment Method</p>
+                      <p className="mt-0.5 font-medium text-foreground">{order.payment_method_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Quantity</p>
+                      <p className="mt-0.5 font-medium text-foreground">{order.quantity} unit(s)</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Purchased</p>
+                      <p className="mt-0.5 font-medium text-foreground">
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Order Details */}
-                <div className="p-4">
-                  <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Quantity</span>
-                      <span className="font-medium text-foreground">{order.quantity} unit(s)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Payment Method</span>
-                      <span className="font-medium text-foreground">{order.payment_method_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Purchased On</span>
-                      <span className="font-medium text-foreground">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Payment Error Message */}
                 {order.payment_status === "failed" && order.payment_error_message && (
-                  <div className="border-t border-border bg-red-50 dark:bg-red-950 p-4">
-                    <p className="text-sm font-medium text-red-900 dark:text-red-100">
-                      Payment Failed: {order.payment_error_message}
-                    </p>
-                    <p className="text-xs text-red-800 dark:text-red-200 mt-1">
-                      Please try placing a new order to complete your purchase.
-                    </p>
+                  <div className="border-t border-border bg-red-50 dark:bg-red-900/20 p-5">
+                    <div className="flex gap-3">
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-900 dark:text-red-100">Payment Failed</p>
+                        <p className="text-sm text-red-800 dark:text-red-200 mt-1">{order.payment_error_message}</p>
+                        <p className="text-xs text-red-700 dark:text-red-300 mt-2">Please try placing a new order to complete your purchase.</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {/* Credentials - Only show if payment is completed */}
                 {order.payment_status === "completed" ? (
                   credentials[order.id] ? (
-                    <div className="border-t border-border bg-muted/30 p-4">
-                      <h4 className="font-semibold text-foreground mb-3">Access Credentials</h4>
+                    <div className="border-t border-border bg-gradient-to-r from-green-50/30 to-transparent dark:from-green-900/10 p-5">
+                      <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        Access Credentials
+                      </h4>
                       <div className="space-y-3">
                         {credentials[order.id].map((cred, index) => (
-                          <div key={index} className="rounded-lg border border-border bg-background p-3">
+                          <div key={index} className="rounded-lg border border-green-200 dark:border-green-800 bg-white dark:bg-green-950/20 p-4 space-y-3">
                             {cred.username && (
-                              <div className="mb-2">
-                                <p className="text-xs font-medium text-muted-foreground mb-1">Username</p>
-                                <div className="flex items-center justify-between gap-2">
-                                  <code className="flex-1 rounded bg-muted/50 px-2 py-1 text-sm font-mono text-foreground">
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Username</p>
+                                <div className="flex items-center justify-between gap-2 bg-secondary/50 rounded-lg p-3">
+                                  <code className="flex-1 text-sm font-mono text-foreground select-all">
                                     {cred.username}
                                   </code>
                                   <button
                                     onClick={() => copyToClipboard(cred.username, "Username")}
-                                    className="text-muted-foreground hover:text-foreground"
-                                    title="Copy"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Copy to clipboard"
                                   >
                                     <Copy className="h-4 w-4" />
                                   </button>
@@ -258,14 +251,14 @@ export default function MyPurchasesPage() {
 
                             {cred.password && (
                               <div>
-                                <p className="text-xs font-medium text-muted-foreground mb-1">Password</p>
-                                <div className="flex items-center justify-between gap-2">
-                                  <code className="flex-1 rounded bg-muted/50 px-2 py-1 text-sm font-mono text-foreground">
+                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Password</p>
+                                <div className="flex items-center justify-between gap-2 bg-secondary/50 rounded-lg p-3">
+                                  <code className="flex-1 text-sm font-mono text-foreground select-all">
                                     {showPasswords[`${order.id}-${index}`]
                                       ? cred.password
                                       : "•".repeat(cred.password.length)}
                                   </code>
-                                  <div className="flex gap-1">
+                                  <div className="flex gap-2">
                                     <button
                                       onClick={() =>
                                         setShowPasswords((prev) => ({
@@ -273,8 +266,8 @@ export default function MyPurchasesPage() {
                                           [`${order.id}-${index}`]: !prev[`${order.id}-${index}`],
                                         }))
                                       }
-                                      className="text-muted-foreground hover:text-foreground"
-                                      title="Show/Hide"
+                                      className="text-muted-foreground hover:text-foreground transition-colors"
+                                      title="Show/Hide password"
                                     >
                                       {showPasswords[`${order.id}-${index}`] ? (
                                         <EyeOff className="h-4 w-4" />
@@ -284,8 +277,8 @@ export default function MyPurchasesPage() {
                                     </button>
                                     <button
                                       onClick={() => copyToClipboard(cred.password, "Password")}
-                                      className="text-muted-foreground hover:text-foreground"
-                                      title="Copy"
+                                      className="text-muted-foreground hover:text-foreground transition-colors"
+                                      title="Copy to clipboard"
                                     >
                                       <Copy className="h-4 w-4" />
                                     </button>
@@ -298,20 +291,26 @@ export default function MyPurchasesPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-t border-border bg-muted/30 p-4">
-                      <p className="text-sm text-muted-foreground">Credentials are being prepared. Please refresh in a moment.</p>
+                    <div className="border-t border-border bg-blue-50 dark:bg-blue-900/20 p-5">
+                      <div className="flex gap-3">
+                        <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-blue-900 dark:text-blue-100">Credentials are being prepared. Please refresh in a moment.</p>
+                      </div>
                     </div>
                   )
                 ) : order.payment_status === "pending" ? (
-                  <div className="border-t border-border bg-blue-50 dark:bg-blue-950 p-4">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Waiting for payment confirmation...
-                    </p>
-                    <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
-                      Your credentials will be available once the payment is confirmed.
-                    </p>
+                  <div className="border-t border-border bg-yellow-50 dark:bg-yellow-900/20 p-5">
+                    <div className="flex gap-3">
+                      <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Waiting for Payment</p>
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">Your credentials will be available once payment is confirmed.</p>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
+              </div>
+            )})
               </div>
             ))}
           </div>

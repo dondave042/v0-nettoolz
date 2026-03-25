@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2, ArrowLeft, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PaymentMethodSelector } from "@/components/payment-method-selector"
 import { toast } from "sonner"
 import { useCart } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/currency"
@@ -240,39 +241,12 @@ function CheckoutContent() {
               {/* Payment Method Selection */}
               <div className="space-y-4 rounded-xl border border-border bg-card p-6">
                 <h2 className="text-lg font-semibold text-foreground">Payment Method</h2>
-                {paymentMethods.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No payment methods available. Please contact support.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {paymentMethods.map((method) => (
-                      <label
-                        key={method.id}
-                        className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-secondary transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="payment_method"
-                          value={method.id}
-                          checked={form.payment_method_id === method.id.toString()}
-                          onChange={(e) =>
-                            setForm({ ...form, payment_method_id: e.target.value })
-                          }
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{method.name}</p>
-                          {method.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {method.description}
-                            </p>
-                          )}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                <PaymentMethodSelector
+                  selectedMethodId={form.payment_method_id ? parseInt(form.payment_method_id) : undefined}
+                  onSelect={(methodId) =>
+                    setForm({ ...form, payment_method_id: methodId.toString() })
+                  }
+                />
               </div>
             </div>
 
