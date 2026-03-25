@@ -35,28 +35,40 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section className="bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] py-16 lg:py-24">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="mb-12 text-center">
-          <h2 className="mb-3 font-[var(--font-heading)] text-3xl font-bold text-white md:text-4xl">
-            Why Choose NETTOOLZ?
+    <section className="relative bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] py-20 lg:py-28 overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute left-0 top-0 h-96 w-96 rounded-full bg-[#38bdf8] blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-[#0ea5e9] blur-3xl"></div>
+      </div>
+
+      <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
+        <div className="mb-16 text-center">
+          <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-[#7dd3fc] mb-4 backdrop-blur-sm">WHY CHOOSE US</span>
+          <h2 className="mb-4 font-[var(--font-heading)] text-4xl font-bold text-white md:text-5xl">
+            Unbeatable Features & Benefits
           </h2>
-          <p className="mx-auto max-w-2xl text-[#bae6fd]">
-            We provide the best experience for buying premium digital accounts
+          <p className="mx-auto max-w-3xl text-lg text-[#bae6fd]">
+            Experience the best service with our industry-leading features designed for your success
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {features.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="group flex flex-col items-center rounded-xl border border-[#38bdf8]/20 bg-white/5 p-8 text-center backdrop-blur transition-all hover:border-[#38bdf8]/40 hover:bg-white/10"
+              className="group relative overflow-hidden rounded-2xl border border-[#38bdf8]/30 bg-white/5 p-8 text-center backdrop-blur transition-all duration-300 hover:border-[#38bdf8]/60 hover:bg-white/10 hover:shadow-2xl hover:shadow-[#38bdf8]/20"
             >
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-[#38bdf8]/20 text-[#38bdf8] transition-colors group-hover:bg-[#38bdf8] group-hover:text-white">
-                <Icon className="h-7 w-7" />
+              {/* Gradient overlay on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#38bdf8]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+              
+              <div className="relative z-10">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-xl bg-[#38bdf8]/20 text-[#38bdf8] transition-all duration-300 group-hover:bg-[#38bdf8] group-hover:text-white group-hover:scale-110 mx-auto">
+                  <Icon className="h-8 w-8" />
+                </div>
+                <h3 className="mb-2 font-semibold text-white text-lg">{title}</h3>
+                <p className="text-sm leading-relaxed text-[#bae6fd]">{description}</p>
               </div>
-              <h3 className="mb-2 font-semibold text-white">{title}</h3>
-              <p className="text-sm leading-relaxed text-[#bae6fd]">{description}</p>
             </div>
           ))}
         </div>

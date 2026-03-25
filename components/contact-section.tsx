@@ -6,20 +6,21 @@ import { toast } from "sonner"
 
 export function ContactSection() {
   return (
-    <section id="contact" className="bg-secondary/50 py-16 lg:py-24">
+    <section id="contact" className="relative bg-gradient-to-b from-background via-secondary/30 to-[#e0f2fe]/10 py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="mx-auto max-w-2xl">
-          <div className="mb-12 text-center">
-            <h2 className="mb-3 font-[var(--font-heading)] text-3xl font-bold text-foreground md:text-4xl">
-              Get in Touch
+          <div className="mb-16 text-center">
+            <span className="inline-block rounded-full bg-[#38bdf8]/10 px-4 py-1.5 text-sm font-semibold text-[#0284c7] mb-4">CONTACT US</span>
+            <h2 className="mb-4 font-[var(--font-heading)] text-4xl font-bold text-foreground md:text-5xl">
+              Get in Touch With Us
             </h2>
-            <p className="text-muted-foreground">
-              Have a question? We&apos;d love to hear from you.
+            <p className="text-lg text-muted-foreground">
+              Have questions? Our support team is here to help. Reach out anytime.
             </p>
           </div>
 
           <form
-            className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 lg:p-8"
+            className="relative overflow-hidden flex flex-col gap-6 rounded-2xl border border-border bg-card p-8 lg:p-10 shadow-lg"
             onSubmit={(e) => {
               e.preventDefault()
               toast.success("Message sent! We'll get back to you shortly.")
