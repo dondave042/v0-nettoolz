@@ -23,14 +23,15 @@ export async function ProductsSection() {
   ` as Product[]
 
   return (
-    <section id="products" className="bg-secondary/50 py-16 lg:py-24">
+    <section id="products" className="relative bg-gradient-to-b from-secondary/30 to-background py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="mb-12 text-center">
-          <h2 className="mb-3 font-[var(--font-heading)] text-3xl font-bold text-foreground md:text-4xl">
-            Our Products
+        <div className="mb-16 text-center">
+          <span className="inline-block rounded-full bg-[#38bdf8]/10 px-4 py-1.5 text-sm font-semibold text-[#0284c7] mb-4">FEATURED ACCOUNTS</span>
+          <h2 className="mb-4 font-[var(--font-heading)] text-4xl font-bold text-foreground md:text-5xl">
+            Premium Accounts Collection
           </h2>
-          <p className="mx-auto max-w-2xl text-muted-foreground">
-            Premium digital accounts at unbeatable prices with instant delivery
+          <p className="mx-auto max-w-3xl text-lg text-muted-foreground">
+            Handpicked premium accounts with instant delivery, verified sellers, and 30-day money-back guarantee
           </p>
         </div>
 
@@ -39,6 +40,12 @@ export async function ProductsSection() {
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
+        
+        {products.length === 0 && (
+          <div className="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/20">
+            <p className="text-muted-foreground">No products available at the moment</p>
+          </div>
+        )}
       </div>
     </section>
   )
