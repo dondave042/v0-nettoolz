@@ -1,5 +1,7 @@
 import { getDb } from "@/lib/db"
-import { Package, FolderOpen, ShoppingCart, Megaphone, Archive } from "lucide-react"
+import { Package, FolderOpen, ShoppingCart, Megaphone, Archive, CreditCard, TrendingUp } from "lucide-react"
+import { PaymentMethodCard } from "@/components/admin/payment-method-card"
+import { PaymentsOverview } from "@/components/admin/payments-overview"
 
 export default async function AdminDashboardPage() {
   const sql = getDb()
@@ -9,6 +11,17 @@ export default async function AdminDashboardPage() {
   const [orders] = await sql`SELECT COUNT(*)::int as count FROM orders`
   const [announcements] = await sql`SELECT COUNT(*)::int as count FROM announcements WHERE is_active = true`
   const [totalStock] = await sql`SELECT COALESCE(SUM(available_qty), 0)::int as total FROM products`
+  
+  // Payment stats
+  const [paymentStats] = await sql`
+    SELECT 
+      COUNT(*)::int as total_transactions,
+      COUNT(CASE WHEN payment_status = 'completed' THEN 1 END)::int as completed_count,
+      COALESCE(SUM(CASE WHEN payment_status = 'completed' THEN total_price ELSE 0 END), 0) as total_revenue,
+      COUNT(CASE WHEN payment_status = 'pending' THEN 1 END)::int as pending_count
+    FROM orders
+  `
+  
   const recentProducts = await sql`
     SELECT p.name, p.price, p.available_qty, p.badge, c.name as category_name
     FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -24,14 +37,14 @@ export default async function AdminDashboardPage() {
   ]
 
   return (
-    <div>
-      <div className="mb-8">
+    <div className="space-y-8">
+      <div>
         <h1 className="font-[var(--font-heading)] text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Welcome back to your NETTOOLZ admin panel</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {stats.map(({ label, value, icon: Icon, color }) => (
           <div
             key={label}
@@ -46,6 +59,55 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Payment Method & Overview Section */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Payment Method Card - Takes 1 column on large screens */}
+        <div className="lg:col-span-1">
+          <PaymentMethodCard />
+        </div>
+        
+        {/* Payment Summary Cards - Takes 2 columns on large screens */}
+        <div className="lg:col-span-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Revenue</p>
+                  <p className="mt-2 text-2xl font-bold text-green-600">
+                    ₦{paymentStats.total_revenue ? parseFloat(paymentStats.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {paymentStats.completed_count} completed transactions
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Payment Status</p>
+                  <p className="mt-2 text-2xl font-bold text-[#38bdf8]">
+                    {paymentStats.total_transactions}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {paymentStats.pending_count} pending payments
+                  </p>
+                </div>
+                <CreditCard className="h-8 w-8 text-[#38bdf8]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payments Overview Section */}
+      <div>
+        <h2 className="mb-4 font-semibold text-foreground">Payment Transactions</h2>
+        <PaymentsOverview />
       </div>
 
       {/* Recent Products */}
