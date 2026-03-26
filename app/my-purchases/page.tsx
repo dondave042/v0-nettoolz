@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, LogOut, Copy, Eye, EyeOff, Package, CheckCircle2, AlertCircle, Clock } from "lucide-react"
+import { Loader2, LogOut, Copy, Eye, EyeOff, Package, CheckCircle2, AlertCircle, Clock, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { toast } from "sonner"
@@ -131,14 +131,22 @@ export default function MyPurchasesPage() {
             title="My Purchases"
             description="View and manage your purchased accounts and credentials"
           />
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="gap-2 w-full sm:w-auto"
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <a href="https://checkout.korapay.com/pay/nettoolz" target="_blank" rel="noopener noreferrer">
+              <Button className="gap-2 w-full bg-green-600 hover:bg-green-700">
+                <CreditCard className="h-4 w-4" />
+                One-Time Payment
+              </Button>
+            </a>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="gap-2 w-full sm:w-auto"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {orders.length === 0 ? (

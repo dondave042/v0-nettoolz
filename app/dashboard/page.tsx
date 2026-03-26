@@ -10,6 +10,7 @@ import {
   Heart,
   Zap,
   ArrowRight,
+  CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UserHeader } from "@/components/dashboard/user-header"
@@ -162,7 +163,7 @@ export default function DashboardPage() {
             {/* Quick Actions */}
             <div className="mb-8">
               <h2 className="text-xl font-bold text-foreground mb-4">Quick Actions</h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Link href="/#products">
                   <Card hoverable className="group cursor-pointer">
                     <div className="flex items-center justify-between">
@@ -194,6 +195,22 @@ export default function DashboardPage() {
                     </div>
                   </Card>
                 </Link>
+
+                <a href="https://checkout.korapay.com/pay/nettoolz" target="_blank" rel="noopener noreferrer">
+                  <Card hoverable className="group cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground group-hover:text-green-600 transition-colors">
+                          Quick Payment
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          One-time payment
+                        </p>
+                      </div>
+                      <CreditCard className="h-5 w-5 text-muted-foreground group-hover:text-green-600 transition-colors" />
+                    </div>
+                  </Card>
+                </a>
 
                 <Link href="/dashboard/support">
                   <Card hoverable className="group cursor-pointer">
