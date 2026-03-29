@@ -10,7 +10,29 @@ async function seedPaymentMethods() {
     const tableCheck = await sql`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
-        WHERE table_name = 'payment_methods'
+        WHERE table_name = 'payment_methods' // Insert default Korapay payment method with JSONB config
+const result = await sql`
+  INSERT INTO payment_methods(
+      name,
+      type,
+      config,
+      is_active,
+      sort_order,
+      created_at,
+      updated_at
+    )
+    VALUES(
+      'Korapay',
+      'korapay',
+      '{"displayName": "Korapay", "description": "Pay securely using Korapay payment gateway", "icon": "korapay", "checkoutUrl": "https://checkout.korapay.com/pay/nettoolz"}':: jsonb,
+      true,
+      1,
+      NOW(),
+      NOW()
+    )
+  RETURNING id, name, type, is_active
+      `
+
       )
     `
 
