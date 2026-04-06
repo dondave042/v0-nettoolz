@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Poppins } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Toaster } from 'sonner'
 import { CartProvider } from '@/lib/cart-context'
+import { AppInitializer } from '@/components/app-initializer'
 import './globals.css'
 
 const _inter = Inter({ subsets: ["latin"] })
@@ -32,11 +34,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <CartProvider>
-          {children}
-        </CartProvider>
+        <AppInitializer>
+          <CartProvider>
+            {children}
+          </CartProvider>
+        </AppInitializer>
         <Toaster position="top-right" richColors />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

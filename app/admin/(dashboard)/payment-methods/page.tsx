@@ -8,15 +8,20 @@ import { toast } from "sonner"
 interface PaymentMethod {
   id: number
   name: string
-  description: string | null
+  type: string
+  config: Record<string, unknown> | null
   is_active: boolean
+  sort_order: number
   created_at: string
+  updated_at: string
 }
 
 const emptyForm = {
   name: "",
-  description: "",
+  type: "",
   is_active: true,
+  sort_order: 0,
+  config: {},
 }
 
 export default function PaymentMethodsPage() {
@@ -56,8 +61,10 @@ export default function PaymentMethodsPage() {
   function openEdit(m: PaymentMethod) {
     setForm({
       name: m.name,
-      description: m.description || "",
+      type: m.type,
       is_active: m.is_active,
+      sort_order: m.sort_order,
+      config: m.config || {},
     })
     setEditId(m.id)
     setShowForm(true)
@@ -65,25 +72,41 @@ export default function PaymentMethodsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    
+    if (!form.name || !form.type) {
+      toast.error("Name and type are required")
+      return
+    }
+
     setSaving(true)
 
     try {
-      const method = editId ? "PUT" : "POST"
-      const body = editId ? { ...form, id: editId } : form
+      let res
+      
+      if (editId) {
+        // Use PUT for update
+        res = await fetch(`/api/admin/payment-methods/${editId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        })
+      } else {
+        // Use POST for create
+        res = await fetch("/api/admin/payment-methods", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        })
+      }
 
-      const res = await fetch("/api/admin/payment-methods", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
+      const data = await res.json()
 
       if (res.ok) {
         toast.success(editId ? "Payment method updated" : "Payment method created")
         setShowForm(false)
         fetchMethods()
       } else {
-        const error = await res.json()
-        toast.error(error.error || "Failed to save")
+        toast.error(data.error || "Failed to save")
       }
     } catch (error) {
       console.error("Save error:", error)
@@ -94,24 +117,25 @@ export default function PaymentMethodsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!window.confirm("Are you sure?")) return
+    if (!window.confirm("Are you sure you want to delete this payment method?")) return
 
     try {
-      const res = await fetch("/api/admin/payment-methods", {
+      const res = await fetch(`/api/admin/payment-methods/${id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
       })
+
+      const data = await res.json()
 
       if (res.ok) {
         toast.success("Payment method deleted")
         fetchMethods()
       } else {
-        toast.error("Failed to delete")
+        toast.error(data.error || "Failed to delete")
       }
     } catch (error) {
       console.error("Delete error:", error)
-      toast.error("Failed to delete")
+      toast.error("Failed to delete payment method")
     }
   }
 
@@ -154,10 +178,15 @@ export default function PaymentMethodsPage() {
               className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
             >
               <div className="flex-1">
-                <h3 className="font-medium text-foreground">{m.name}</h3>
-                {m.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
-                )}
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-foreground">{m.name}</h3>
+                  <span className="rounded-md bg-muted px-2 py-1 text-xs font-mono text-muted-foreground">
+                    {m.type}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Order: {m.sort_order}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <span
@@ -208,37 +237,52 @@ export default function PaymentMethodsPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-foreground">Name</label>
+                <label className="text-sm font-medium text-foreground">Name *</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Stripe, Bank Transfer"
+                  placeholder="e.g. Korapay, Paystack"
                   required
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-foreground">Description</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Optional description for buyers"
-                  rows={3}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                <label className="text-sm font-medium text-foreground">Type *</label>
+                <input
+                  type="text"
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value.toLowerCase() })}
+                  placeholder="e.g. korapay, paystack"
+                  required
+                  disabled={!!editId}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none disabled:opacity-50"
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-border accent-[#38bdf8]"
-                />
-                Active
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-foreground">Sort Order</label>
+                  <input
+                    type="number"
+                    value={form.sort_order}
+                    onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-border accent-[#38bdf8]"
+                  />
+                  Active
+                </label>
+              </div>
 
               <div className="flex gap-2 pt-4">
                 <Button

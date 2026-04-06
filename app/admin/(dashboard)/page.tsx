@@ -1,5 +1,9 @@
 import { getDb } from "@/lib/db"
-import { Package, FolderOpen, ShoppingCart, Megaphone, Archive } from "lucide-react"
+import { Package, FolderOpen, ShoppingCart, Megaphone, Archive, CreditCard, TrendingUp, DollarSign } from "lucide-react"
+import { PaymentMethodCard } from "@/components/admin/payment-method-card"
+import { PaymentsOverview } from "@/components/admin/payments-overview"
+import { StatCard } from "@/components/dashboard/stat-card"
+import { DashboardHeader } from "@/components/dashboard/header"
 
 export default async function AdminDashboardPage() {
   const sql = getDb()
@@ -9,43 +13,98 @@ export default async function AdminDashboardPage() {
   const [orders] = await sql`SELECT COUNT(*)::int as count FROM orders`
   const [announcements] = await sql`SELECT COUNT(*)::int as count FROM announcements WHERE is_active = true`
   const [totalStock] = await sql`SELECT COALESCE(SUM(available_qty), 0)::int as total FROM products`
+  
+  // Payment stats
+  const [paymentStats] = await sql`
+    SELECT 
+      COUNT(*)::int as total_transactions,
+      COUNT(CASE WHEN payment_status = 'completed' THEN 1 END)::int as completed_count,
+      COALESCE(SUM(CASE WHEN payment_status = 'completed' THEN total_price ELSE 0 END), 0) as total_revenue,
+      COUNT(CASE WHEN payment_status = 'pending' THEN 1 END)::int as pending_count
+    FROM orders
+  `
+  
   const recentProducts = await sql`
     SELECT p.name, p.price, p.available_qty, p.badge, c.name as category_name
     FROM products p LEFT JOIN categories c ON p.category_id = c.id
     ORDER BY p.created_at DESC LIMIT 5
   `
 
-  const stats = [
-    { label: "Products", value: products.count, icon: Package, color: "bg-[#38bdf8]" },
-    { label: "Categories", value: categories.count, icon: FolderOpen, color: "bg-[#0ea5e9]" },
-    { label: "Orders", value: orders.count, icon: ShoppingCart, color: "bg-[#0284c7]" },
-    { label: "Announcements", value: announcements.count, icon: Megaphone, color: "bg-[#7dd3fc]" },
-    { label: "Total Stock", value: totalStock.total, icon: Archive, color: "bg-[#0c4a6e]" },
-  ]
-
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="font-[var(--font-heading)] text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Welcome back to your NETTOOLZ admin panel</p>
+    <div className="space-y-8">
+      <DashboardHeader
+        title="Admin Dashboard"
+        description="Welcome back! Monitor your business metrics and manage payment operations."
+      />
+
+      {/* Key Metrics */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          label="Total Products"
+          value={products.count}
+          icon={Package}
+          color="cyan"
+          description="Available products"
+        />
+        <StatCard
+          label="Categories"
+          value={categories.count}
+          icon={FolderOpen}
+          color="blue"
+          description="Product categories"
+        />
+        <StatCard
+          label="Total Orders"
+          value={orders.count}
+          icon={ShoppingCart}
+          color="cyan"
+          description="Transactions"
+        />
+        <StatCard
+          label="Active Announcements"
+          value={announcements.count}
+          icon={Megaphone}
+          color="purple"
+          description="Published"
+        />
+        <StatCard
+          label="Total Stock"
+          value={totalStock.total}
+          icon={Archive}
+          color="green"
+          description="Units in inventory"
+        />
       </div>
 
-      {/* Stats Grid */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
-          >
-            <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${color} text-white`}>
-              <Icon className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{value}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
-            </div>
+      {/* Payment Section */}
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-foreground">Payment Overview</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label="Total Revenue"
+            value={`₦${paymentStats.total_revenue ? parseFloat(paymentStats.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`}
+            icon={DollarSign}
+            color="green"
+            description={`${paymentStats.completed_count} completed transactions`}
+            trend={{ direction: "up", percentage: 12 }}
+          />
+          <StatCard
+            label="Total Transactions"
+            value={paymentStats.total_transactions}
+            icon={CreditCard}
+            color="cyan"
+            description={`${paymentStats.pending_count} pending payments`}
+          />
+          <div className="lg:col-span-1">
+            <PaymentMethodCard />
           </div>
-        ))}
+        </div>
+      </div>
+
+      {/* Payments Overview Section */}
+      <div>
+        <h2 className="mb-4 font-semibold text-foreground">Payment Transactions</h2>
+        <PaymentsOverview />
       </div>
 
       {/* Recent Products */}

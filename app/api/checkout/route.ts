@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getBuyerSession } from '@/lib/buyer-auth'
 import { getDb } from '@/lib/db'
+import { getPaymentConfig } from '@/lib/payment-config'
+import { PaymentStatus } from '@/lib/payment-status'
+import {
+  PaymentConfigError,
+  CheckoutError,
+  ValidationError,
+} from '@/lib/payment-errors'
 
 export async function POST(request: Request) {
   const buyer = await getBuyerSession()
@@ -10,13 +17,28 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Validate payment configuration
+    try {
+      const config = getPaymentConfig()
+      console.log('[Checkout] Payment configuration validated')
+    } catch (error) {
+      console.error('[Checkout] Payment configuration is invalid:', error)
+      throw new PaymentConfigError(
+        'Payment system is not properly configured'
+      )
+    }
+
     const { product_id, quantity, payment_method_id } = await request.json()
 
     if (!product_id || !quantity || !payment_method_id) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: product_id, quantity, payment_method_id' },
         { status: 400 }
       )
+    }
+
+    if (quantity < 1 || !Number.isInteger(quantity)) {
+      throw new ValidationError('Quantity must be a positive integer')
     }
 
     const sql = getDb()
@@ -27,16 +49,15 @@ export async function POST(request: Request) {
     `
 
     if (products.length === 0) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      throw new ValidationError('Product not found')
     }
 
     const product = products[0]
 
     // Check available quantity
     if (product.available_qty < quantity) {
-      return NextResponse.json(
-        { error: 'Not enough inventory' },
-        { status: 400 }
+      throw new ValidationError(
+        `Not enough inventory. Available: ${product.available_qty}, Requested: ${quantity}`
       )
     }
 
@@ -47,9 +68,8 @@ export async function POST(request: Request) {
     `
 
     if (credentialCount[0].count < quantity) {
-      return NextResponse.json(
-        { error: 'Not enough credentials available for this quantity' },
-        { status: 400 }
+      throw new ValidationError(
+        `Not enough credentials available. Available: ${credentialCount[0].count}, Requested: ${quantity}`
       )
     }
 
@@ -59,20 +79,54 @@ export async function POST(request: Request) {
     `
 
     if (methods.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid payment method' },
-        { status: 400 }
-      )
+      throw new ValidationError('Invalid or inactive payment method')
     }
 
     const total_price = parseFloat(product.price) * quantity
+    const paymentReference = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-    // Create order
+    // Create order with payment tracking
     const orders = await sql`
-      INSERT INTO orders (buyer_id, product_id, quantity, total_price, payment_method_id, status)
-      VALUES (${buyer.id}, ${product_id}, ${quantity}, ${total_price}, ${payment_method_id}, 'pending')
-      RETURNING id, buyer_id, product_id, quantity, total_price, payment_method_id, status, created_at
+      INSERT INTO orders (
+        buyer_id, 
+        product_id, 
+        quantity, 
+        total_price, 
+        payment_method_id, 
+        status,
+        payment_status,
+        payment_reference_id,
+        buyer_email,
+        created_at
+      )
+      VALUES (
+        ${buyer.id}, 
+        ${product_id}, 
+        ${quantity}, 
+        ${total_price}, 
+        ${payment_method_id}, 
+        'pending',
+        ${PaymentStatus.PENDING},
+        ${paymentReference},
+        ${buyer.email || ''},
+        NOW()
+      )
+      RETURNING 
+        id, 
+        buyer_id, 
+        product_id, 
+        quantity, 
+        total_price, 
+        payment_method_id, 
+        status,
+        payment_status,
+        payment_reference_id,
+        created_at
     `
+
+    if (!orders || orders.length === 0) {
+      throw new CheckoutError('Failed to create order in database')
+    }
 
     const order = orders[0]
 
@@ -85,12 +139,37 @@ export async function POST(request: Request) {
           total_price: order.total_price,
           payment_method_id: order.payment_method_id,
           status: order.status,
+          payment_status: order.payment_status,
+          payment_reference_id: order.payment_reference_id,
+          created_at: order.created_at,
         },
       },
       { status: 201 }
     )
   } catch (error) {
-    console.error('Checkout error:', error)
+    console.error('[Checkout] Error creating order:', error)
+
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      )
+    }
+
+    if (error instanceof PaymentConfigError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
+
+    if (error instanceof CheckoutError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Failed to create order' },
       { status: 500 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2, ArrowLeft, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PaymentMethodSelector } from "@/components/payment-method-selector"
 import { toast } from "sonner"
 import { useCart } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/currency"
@@ -12,7 +13,8 @@ import { formatPrice } from "@/lib/currency"
 interface PaymentMethod {
   id: number
   name: string
-  description: string | null
+  type: string
+  config: Record<string, unknown> | null
 }
 
 interface BuyerSession {
@@ -78,7 +80,7 @@ function CheckoutContent() {
 
   async function fetchPaymentMethods() {
     try {
-      const res = await fetch('/api/admin/payment-methods')
+      const res = await fetch('/api/payment-methods')
       if (res.ok) {
         const data = await res.json()
         setPaymentMethods(data.methods || [])
@@ -88,6 +90,8 @@ function CheckoutContent() {
             payment_method_id: data.methods[0].id.toString(),
           }))
         }
+      } else {
+        toast.error('No payment methods available')
       }
     } catch (error) {
       console.error('[v0] Failed to fetch payment methods:', error)
@@ -103,36 +107,65 @@ function CheckoutContent() {
       return
     }
 
+    if (!buyer) {
+      toast.error('User information not available')
+      return
+    }
+
     setSubmitting(true)
     try {
-      const res = await fetch('/api/checkout', {
+      // Step 1: Create order
+      const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+      
+      const checkoutRes = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map((item) => ({
-            product_id: item.productId,
-            quantity: item.quantity,
-          })),
+          product_id: items[0]?.productId,
+          quantity: items.reduce((sum, item) => sum + item.quantity, 0),
           payment_method_id: parseInt(form.payment_method_id),
         }),
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        toast.error(error.error || 'Checkout failed')
+      if (!checkoutRes.ok) {
+        const error = await checkoutRes.json()
+        toast.error(error.error || 'Failed to create order')
         return
       }
 
-      const data = await res.json()
+      const orderData = await checkoutRes.json()
+      const orderId = orderData.order.id
 
-      // Clear cart on successful checkout
+      // Step 2: Initialize payment with Korapay
+      const paymentRes = await fetch('/api/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderId,
+          amount: totalPrice,
+          currency: 'NGN',
+          email: buyer.email,
+        }),
+      })
+
+      if (!paymentRes.ok) {
+        const error = await paymentRes.json()
+        toast.error(error.error || 'Failed to initialize payment')
+        return
+      }
+
+      const paymentData = await paymentRes.json()
+
+      if (!paymentData.checkout_url) {
+        toast.error('Payment URL not available')
+        return
+      }
+
+      // Clear cart before redirecting to payment
       clearCart()
-      setCompleted(true)
 
-      // Redirect to success page after a delay
-      setTimeout(() => {
-        router.push('/my-purchases')
-      }, 2000)
+      // Redirect to Korapay checkout
+      window.location.href = paymentData.checkout_url
     } catch (error) {
       console.error('[v0] Checkout error:', error)
       toast.error('An error occurred during checkout')
@@ -208,39 +241,12 @@ function CheckoutContent() {
               {/* Payment Method Selection */}
               <div className="space-y-4 rounded-xl border border-border bg-card p-6">
                 <h2 className="text-lg font-semibold text-foreground">Payment Method</h2>
-                {paymentMethods.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No payment methods available. Please contact support.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {paymentMethods.map((method) => (
-                      <label
-                        key={method.id}
-                        className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-secondary transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="payment_method"
-                          value={method.id}
-                          checked={form.payment_method_id === method.id.toString()}
-                          onChange={(e) =>
-                            setForm({ ...form, payment_method_id: e.target.value })
-                          }
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{method.name}</p>
-                          {method.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {method.description}
-                            </p>
-                          )}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                <PaymentMethodSelector
+                  selectedMethodId={form.payment_method_id ? parseInt(form.payment_method_id) : undefined}
+                  onSelect={(methodId) =>
+                    setForm({ ...form, payment_method_id: methodId.toString() })
+                  }
+                />
               </div>
             </div>
 
