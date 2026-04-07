@@ -10,11 +10,12 @@ export interface BuyerSession {
   id: number
   email: string
   name: string
+  balance: number
   iat?: number
   exp?: number
 }
 
-export async function createBuyerToken(buyer: { id: number; email: string; name: string }) {
+export async function createBuyerToken(buyer: { id: number; email: string; name: string; balance: number }) {
   const token = await new SignJWT(buyer)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()

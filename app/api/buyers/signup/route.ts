@@ -39,13 +39,18 @@ export async function POST(request: Request) {
 
     // Create new buyer
     const result = await sql`
-      INSERT INTO buyers (email, password_hash, full_name)
-      VALUES (${email}, ${passwordHash}, ${name})
-      RETURNING id, email, full_name as name
+      INSERT INTO buyers (email, password_hash, full_name, balance)
+      VALUES (${email}, ${passwordHash}, ${name}, 0)
+      RETURNING id, email, full_name as name, balance
     `
 
     const buyer = result[0]
-    const token = await createBuyerToken(buyer)
+    const token = await createBuyerToken({
+      id: buyer.id,
+      email: buyer.email,
+      name: buyer.name,
+      balance: buyer.balance,
+    })
 
     // Create response with cookie
     const response = NextResponse.json(

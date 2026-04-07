@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const passwordHash = Buffer.from(`${password}${email}`).toString('base64')
 
     const result = await sql`
-      SELECT id, email, full_name as name, password_hash FROM buyers WHERE email = ${email}
+      SELECT id, email, full_name as name, password_hash, balance FROM buyers WHERE email = ${email}
     `
 
     if (result.length === 0) {
@@ -40,11 +40,12 @@ export async function POST(request: Request) {
       id: buyer.id,
       email: buyer.email,
       name: buyer.name,
+      balance: buyer.balance || 0,
     })
 
     // Create response with cookie
     const response = NextResponse.json(
-      { success: true, buyer: { id: buyer.id, email: buyer.email, name: buyer.name } },
+      { success: true, buyer: { id: buyer.id, email: buyer.email, name: buyer.name, balance: buyer.balance || 0 } },
       { status: 200 }
     )
 

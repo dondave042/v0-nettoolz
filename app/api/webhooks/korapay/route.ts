@@ -11,6 +11,48 @@ import {
 } from '@/lib/payment-errors';
 
 /**
+ * Assign credentials to a buyer after successful payment
+ */
+async function assignCredentialsToBuyer(db: any, orderId: string, buyerId: number, productId: number, quantity: number) {
+  try {
+    // Get available credentials for this product
+    const availableCredentials = await db.query(
+      `SELECT id FROM buyer_credentials_inventory
+       WHERE product_id = ? AND assigned_to_buyer_id IS NULL
+       ORDER BY created_at ASC LIMIT ?`,
+      [productId, quantity]
+    );
+
+    if (availableCredentials.length < quantity) {
+      throw new WebhookProcessingError(`Only ${availableCredentials.length} credentials available, requested ${quantity}`);
+    }
+
+    // Assign credentials to buyer
+    const credentialIds = availableCredentials.map((cred: any) => cred.id);
+    await db.query(
+      `UPDATE buyer_credentials_inventory
+       SET assigned_to_buyer_id = ?, assigned_at = NOW()
+       WHERE id IN (${credentialIds.map(() => '?').join(',')})`,
+      [buyerId, ...credentialIds]
+    );
+
+    // Create order credentials records
+    for (const cred of availableCredentials) {
+      await db.query(
+        `INSERT INTO order_credentials (order_id, credential_id, created_at)
+         VALUES (?, ?, NOW())`,
+        [orderId, cred.id]
+      );
+    }
+
+    console.log(`Assigned ${quantity} credentials to buyer ${buyerId} for order ${orderId}`);
+  } catch (error) {
+    console.error('Error assigning credentials:', error);
+    throw new WebhookProcessingError('Failed to assign credentials to buyer');
+  }
+}
+
+/**
  * Korapay Webhook Handler
  * 
  * This endpoint handles payment notifications from Korapay for:
@@ -130,33 +172,70 @@ async function findOrderByReference(
 }
 
 /**
- * Handles successful payment event
+ * Handles successful payment event - now adds to user balance
  */
 async function handlePaymentCompleted(
   payload: KorapayWebhookPayload,
   order: { id: string; buyer_email: string }
 ): Promise<void> {
   try {
+    // Get buyer ID from order
+    const buyerResult = await db.query(
+      `SELECT buyer_id FROM orders WHERE id = ?`,
+      [order.id]
+    );
+
+    if (buyerResult.length === 0) {
+      throw new WebhookProcessingError(`Buyer not found for order ${order.id}`);
+    }
+
+    const buyerId = buyerResult[0].buyer_id;
+    const amount = payload.data.amount / 100; // Convert from cents
+
+    // Add amount to buyer balance
+    await db.query(
+      `UPDATE buyers SET balance = balance + ? WHERE id = ?`,
+      [amount, buyerId]
+    );
+
+    // Create deposit record
+    await db.query(
+      `INSERT INTO deposits (buyer_id, amount, reference_id, status, created_at)
+       VALUES (?, ?, ?, 'completed', NOW())`,
+      [buyerId, amount, payload.data.reference]
+    );
+
     // Update order status to completed
     await db.query(
-      `UPDATE orders 
-       SET payment_status = ?, payment_completed_at = NOW(), payment_amount = ?, payment_currency = ?
+      `UPDATE orders
+       SET payment_status = ?, payment_completed_at = NOW(), payment_amount = ?, payment_currency = ?, status = 'completed'
        WHERE id = ?`,
       [
         PaymentStatus.COMPLETED,
-        payload.data.amount,
+        amount,
         payload.data.currency,
         order.id,
       ]
     );
 
+    // Assign credentials to buyer
+    const orderDetails = await db.query(
+      `SELECT buyer_id, product_id, quantity FROM orders WHERE id = ?`,
+      [order.id]
+    );
+
+    if (orderDetails.length > 0) {
+      const { buyer_id, product_id, quantity } = orderDetails[0];
+      await assignCredentialsToBuyer(db, order.id, buyer_id, product_id, quantity);
+    }
+
     console.log(
-      `[Webhook] Payment completed for order ${order.id}, reference ${payload.data.reference}`
+      `[Webhook] Balance topped up for buyer ${buyerId}, order ${order.id}, reference ${payload.data.reference}, amount: ₦${amount}`
     );
   } catch (error) {
-    console.error('[Webhook] Error updating order status:', error);
+    console.error('[Webhook] Error processing payment completion:', error);
     throw new WebhookProcessingError(
-      `Failed to update order status for order ${order.id}`
+      `Failed to process payment completion for order ${order.id}`
     );
   }
 }
