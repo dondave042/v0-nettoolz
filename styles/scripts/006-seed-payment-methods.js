@@ -1,6 +1,11 @@
-import { getDb } from '../../lib/db.js'
+const { neon } = require('@neondatabase/serverless')
 
-const sql = getDb()
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL environment variable is required to run this script.')
+  process.exit(1)
+}
+
+const sql = neon(process.env.DATABASE_URL)
 
 async function seedPaymentMethods() {
   console.log('[Payment Methods] Starting payment methods seeding...')
