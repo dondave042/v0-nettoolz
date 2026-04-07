@@ -318,9 +318,8 @@ export default function MyPurchasesPage() {
                   </div>
                 ) : null}
               </div>
-            )})
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

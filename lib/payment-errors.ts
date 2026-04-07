@@ -186,3 +186,118 @@ export function logPaymentError(error: unknown, context?: string): void {
     console.error(`${contextStr}[${timestamp}] Unknown error:`, error)
   }
 }
+
+/**
+ * Specific error classes for different contexts
+ */
+export class PaymentConfigError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.INVALID_CONFIG,
+      message,
+      'Payment system configuration error. Please try again later.',
+      500,
+      false,
+      metadata
+    )
+    this.name = 'PaymentConfigError'
+  }
+}
+
+export class CheckoutError extends PaymentError {
+  constructor(message: string, userMessage?: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.PAYMENT_FAILED,
+      message,
+      userMessage || 'Checkout failed. Please try again.',
+      400,
+      true,
+      metadata
+    )
+    this.name = 'CheckoutError'
+  }
+}
+
+export class ValidationError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.MISSING_REQUIRED_FIELDS,
+      message,
+      'Invalid input data. Please check your information and try again.',
+      400,
+      false,
+      metadata
+    )
+    this.name = 'ValidationError'
+  }
+}
+
+export class PaymentWebhookError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.WEBHOOK_VALIDATION_FAILED,
+      message,
+      'Webhook validation failed. Please contact support.',
+      401,
+      false,
+      metadata
+    )
+    this.name = 'PaymentWebhookError'
+  }
+}
+
+export class DuplicateWebhookError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.DUPLICATE_WEBHOOK,
+      message,
+      'This webhook has already been processed.',
+      409,
+      false,
+      metadata
+    )
+    this.name = 'DuplicateWebhookError'
+  }
+}
+
+export class InvalidSignatureError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.WEBHOOK_VALIDATION_FAILED,
+      message,
+      'Invalid webhook signature. Please contact support.',
+      401,
+      false,
+      metadata
+    )
+    this.name = 'InvalidSignatureError'
+  }
+}
+
+export class WebhookProcessingError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.WEBHOOK_PROCESSING_FAILED,
+      message,
+      'Failed to process webhook. Please contact support.',
+      500,
+      true,
+      metadata
+    )
+    this.name = 'WebhookProcessingError'
+  }
+}
+
+export class PaymentAPIError extends PaymentError {
+  constructor(message: string, metadata?: Record<string, any>) {
+    super(
+      PaymentErrorCode.KORAPAY_API_ERROR,
+      message,
+      'Payment gateway error. Please try again later.',
+      502,
+      true,
+      metadata
+    )
+    this.name = 'PaymentAPIError'
+  }
+}
