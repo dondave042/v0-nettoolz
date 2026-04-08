@@ -9,46 +9,6 @@ import {
   ValidationError,
 } from '@/lib/payment-errors'
 
-/**
- * Assign credentials to a buyer after successful payment
- */
-async function assignCredentialsToBuyer(sql: any, orderId: string, buyerId: number, productId: number, quantity: number) {
-  try {
-    // Get available credentials for this product
-    const availableCredentials = await sql`
-      SELECT id FROM buyer_credentials_inventory
-      WHERE product_id = ${productId} AND assigned_to_buyer_id IS NULL
-      ORDER BY created_at ASC
-      LIMIT ${quantity}
-    `
-
-    if (availableCredentials.length < quantity) {
-      throw new CheckoutError(`Only ${availableCredentials.length} credentials available, requested ${quantity}`)
-    }
-
-    // Assign credentials to buyer
-    const credentialIds = availableCredentials.map((cred: any) => cred.id)
-    await sql`
-      UPDATE buyer_credentials_inventory
-      SET assigned_to_buyer_id = ${buyerId}, assigned_at = NOW()
-      WHERE id = ANY(${credentialIds})
-    `
-
-    // Create order credentials records
-    for (const cred of availableCredentials) {
-      await sql`
-        INSERT INTO order_credentials (order_id, credential_id, created_at)
-        VALUES (${orderId}, ${cred.id}, NOW())
-      `
-    }
-
-    console.log(`Assigned ${quantity} credentials to buyer ${buyerId} for order ${orderId}`)
-  } catch (error) {
-    console.error('Error assigning credentials:', error)
-    throw new CheckoutError('Failed to assign credentials to buyer')
-  }
-}
-
 export async function POST(request: Request) {
   const buyer = await getBuyerSession()
 
@@ -115,109 +75,16 @@ export async function POST(request: Request) {
 
     // Get payment method
     const methods = await sql`
-      SELECT id, name, type FROM payment_methods WHERE id = ${payment_method_id} AND is_active = true
+      SELECT id, name FROM payment_methods WHERE id = ${payment_method_id} AND is_active = true
     `
 
     if (methods.length === 0) {
       throw new ValidationError('Invalid or inactive payment method')
     }
 
-    const paymentMethod = methods[0]
     const total_price = parseFloat(product.price) * quantity
     const paymentReference = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-    // Handle Dashboard payment method (balance payment)
-    if (paymentMethod.type === 'dashboard') {
-      // Check buyer balance
-      const buyerBalance = await sql`
-        SELECT balance FROM buyers WHERE id = ${buyer.id}
-      `
-
-      if (buyerBalance.length === 0) {
-        throw new ValidationError('Buyer not found')
-      }
-
-      const balance = parseFloat(buyerBalance[0].balance || 0)
-
-      if (balance < total_price) {
-        throw new ValidationError(
-          `Insufficient balance. Available: ₦${balance.toLocaleString()}, Required: ₦${total_price.toLocaleString()}`
-        )
-      }
-
-      // Deduct from balance and create order as completed
-      await sql`
-        UPDATE buyers SET balance = balance - ${total_price} WHERE id = ${buyer.id}
-      `
-
-      // Create order as completed
-      const orders = await sql`
-        INSERT INTO orders (
-          buyer_id,
-          product_id,
-          quantity,
-          total_price,
-          payment_method_id,
-          status,
-          payment_status,
-          payment_reference_id,
-          buyer_email,
-          created_at
-        )
-        VALUES (
-          ${buyer.id},
-          ${product_id},
-          ${quantity},
-          ${total_price},
-          ${payment_method_id},
-          'completed',
-          ${PaymentStatus.COMPLETED},
-          ${paymentReference},
-          ${buyer.email || ''},
-          NOW()
-        )
-        RETURNING
-          id,
-          buyer_id,
-          product_id,
-          quantity,
-          total_price,
-          payment_method_id,
-          status,
-          payment_status,
-          payment_reference_id,
-          created_at
-      `
-
-      if (!orders || orders.length === 0) {
-        throw new CheckoutError('Failed to create order in database')
-      }
-
-      const order = orders[0]
-
-      // Assign credentials to buyer
-      await assignCredentialsToBuyer(sql, order.id, buyer.id, product_id, quantity)
-
-      return NextResponse.json(
-        {
-          order: {
-            id: order.id,
-            product_id: order.product_id,
-            quantity: order.quantity,
-            total_price: order.total_price,
-            payment_method_id: order.payment_method_id,
-            status: order.status,
-            payment_status: order.payment_status,
-            payment_reference_id: order.payment_reference_id,
-            created_at: order.created_at,
-          },
-          message: 'Payment completed successfully using account balance',
-        },
-        { status: 201 }
-      )
-    }
-
-    // Handle other payment methods (like Korapay)
     // Create order with payment tracking
     const orders = await sql`
       INSERT INTO orders (
@@ -250,7 +117,7 @@ export async function POST(request: Request) {
         product_id, 
         quantity, 
         total_price, 
-        payment_method_id,
+        payment_method_id, 
         status,
         payment_status,
         payment_reference_id,
