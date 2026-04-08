@@ -8,46 +8,6 @@ import {
   ValidationError,
 } from '@/lib/payment-errors'
 
-/**
- * Assign credentials to a buyer after successful payment
- */
-async function assignCredentialsToBuyer(sql: any, orderId: string, buyerId: number, productId: number, quantity: number) {
-  try {
-    // Get available credentials for this product
-    const availableCredentials = await sql`
-      SELECT id FROM buyer_credentials_inventory
-      WHERE product_id = ${productId} AND assigned_to_buyer_id IS NULL
-      ORDER BY created_at ASC
-      LIMIT ${quantity}
-    `
-
-    if (availableCredentials.length < quantity) {
-      throw new ValidationError(`Only ${availableCredentials.length} credentials available, requested ${quantity}`)
-    }
-
-    // Assign credentials to buyer
-    const credentialIds = availableCredentials.map((cred: any) => cred.id)
-    await sql`
-      UPDATE buyer_credentials_inventory
-      SET assigned_to_buyer_id = ${buyerId}, assigned_at = NOW()
-      WHERE id = ANY(${credentialIds})
-    `
-
-    // Create order credentials records
-    for (const cred of availableCredentials) {
-      await sql`
-        INSERT INTO order_credentials (order_id, credential_id, created_at)
-        VALUES (${orderId}, ${cred.id}, NOW())
-      `
-    }
-
-    console.log(`Assigned ${quantity} credentials to buyer ${buyerId} for order ${orderId}`)
-  } catch (error) {
-    console.error('Error assigning credentials:', error)
-    throw new ValidationError('Failed to assign credentials to buyer')
-  }
-}
-
 interface InitializePaymentRequest {
   orderId: string
   amount: number
@@ -107,65 +67,16 @@ export async function POST(request: Request) {
 
     const order = orders[0]
 
-    // Get payment method for this order
-    const orderPaymentMethod = await sql`
-      SELECT pm.type, pm.name FROM payment_methods pm
-      JOIN orders o ON o.payment_method_id = pm.id
-      WHERE o.id = ${orderId}
-    `
-
-    if (orderPaymentMethod.length === 0) {
-      throw new ValidationError('Payment method not found for order')
+    // Prevent re-processing completed or failed payments
+    if (
+      order.payment_status === 'completed' ||
+      order.payment_status === 'failed'
+    ) {
+      throw new ValidationError(
+        `Cannot initialize payment for order with status: ${order.payment_status}`
+      )
     }
 
-    const paymentMethodType = orderPaymentMethod[0].type
-
-    // Handle Korapay as balance top-up
-    if (paymentMethodType === 'korapay') {
-      // For Korapay, we'll simulate a successful payment that adds to balance
-      // In a real implementation, this would integrate with actual Korapay payment processing
-
-      // Add amount to buyer balance
-      await sql`
-        UPDATE buyers SET balance = balance + ${amount} WHERE id = ${buyer.id}
-      `
-
-      // Create deposit record
-      await sql`
-        INSERT INTO deposits (buyer_id, amount, reference_id, status, created_at)
-        VALUES (${buyer.id}, ${amount}, ${korapayReference}, 'completed', NOW())
-      `
-
-      // Update order status to completed
-      await sql`
-        UPDATE orders
-        SET payment_status = ${PaymentStatus.COMPLETED},
-            payment_completed_at = NOW(),
-            payment_amount = ${amount},
-            payment_currency = ${currency},
-            status = 'completed'
-        WHERE id = ${orderId}
-      `
-
-      // Assign credentials to buyer
-      const orderDetails = await sql`
-        SELECT product_id, quantity FROM orders WHERE id = ${orderId}
-      `
-
-      if (orderDetails.length > 0) {
-        const { product_id, quantity } = orderDetails[0]
-        await assignCredentialsToBuyer(sql, orderId, buyer.id, product_id, quantity)
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Balance topped up successfully',
-        new_balance: amount, // In real app, fetch actual balance
-        order_id: orderId,
-      })
-    }
-
-    // Handle other payment methods (like Dashboard - but Dashboard is handled in checkout)
     // Initialize Korapay payment
     const korapayReference = order.payment_reference_id || `ORD-${orderId}-${Date.now()}`
 
