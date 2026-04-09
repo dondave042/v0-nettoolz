@@ -192,6 +192,7 @@ export async function GET(request: Request) {
       SELECT 
         o.id, o.product_id, o.quantity, o.total_price, o.status, 
         o.payment_method_id, o.created_at,
+        o.payment_status, o.payment_error_message, o.payment_reference_id,
         p.name as product_name, p.price,
         pm.name as payment_method_name
       FROM orders o
