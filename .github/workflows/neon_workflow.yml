@@ -46,6 +46,30 @@ jobs:
           branch_name: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
+      - name: Sync Neon preview database to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+        run: |
+          if [ -z "${VERCEL_TOKEN}" ] || [ -z "${VERCEL_ORG_ID}" ] || [ -z "${VERCEL_PROJECT_ID}" ]; then
+            echo "Skipping Vercel env sync. Set VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID GitHub secrets to enable it."
+            exit 0
+          fi
+
+          npm install --global vercel@latest
+
+          mkdir -p .vercel
+          cat > .vercel/project.json <<EOF
+          {
+            "orgId": "${VERCEL_ORG_ID}",
+            "projectId": "${VERCEL_PROJECT_ID}"
+          }
+          EOF
+
+          echo "::add-mask::${DATABASE_URL}"
+          printf '%s' "${DATABASE_URL}" | vercel env add DATABASE_URL preview "${{ needs.setup.outputs.branch }}" --sensitive --force --token "${VERCEL_TOKEN}"
 
 # The step above creates a new Neon branch.
 # You may want to do something with the new branch, such as run migrations, run tests

@@ -6,7 +6,7 @@ export default async function AnalyticsPage() {
   const sql = getDb()
 
   // Get analytics data
-  const [dailyStats] = await sql`
+  const dailyStats = await sql`
     SELECT 
       DATE(created_at) as date,
       COUNT(*)::int as total_orders,
@@ -19,7 +19,7 @@ export default async function AnalyticsPage() {
     LIMIT 30
   `
 
-  const [topProducts] = await sql`
+  const topProducts = await sql`
     SELECT 
       p.id,
       p.name,
@@ -32,7 +32,7 @@ export default async function AnalyticsPage() {
     LIMIT 10
   `
 
-  const [paymentMethodStats] = await sql`
+  const paymentMethodStats = await sql`
     SELECT 
       pm.name,
       COUNT(o.id)::int as transaction_count,
@@ -44,10 +44,10 @@ export default async function AnalyticsPage() {
   `
 
   // Calculate summary stats
-  const totalRevenue = dailyStats.reduce((sum, day) => sum + parseFloat(day.revenue || 0), 0)
+  const totalRevenue = dailyStats.reduce((sum, day) => sum + Number(day.revenue || 0), 0)
   const totalOrders = dailyStats.reduce((sum, day) => sum + day.total_orders, 0)
   const completedOrders = dailyStats.reduce((sum, day) => sum + day.completed_orders, 0)
-  const conversionRate = totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : 0
+  const conversionRate = totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : "0.0"
 
   return (
     <div className="space-y-8">

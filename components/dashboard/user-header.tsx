@@ -1,4 +1,4 @@
-"use client"
+ "use client"
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -99,7 +99,7 @@ export function UserHeader({ onMenuToggle, userName = "Guest" }: UserHeaderProps
           </div>
         </div>
 
-        <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
+        <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
       </header>
     </>
   )

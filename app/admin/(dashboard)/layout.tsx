@@ -16,7 +16,7 @@ export default async function AdminDashboardLayout({
     <div className="flex min-h-screen bg-background">
       <AdminSidebar />
       <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">{children}</div>
+        <div className="mx-auto max-w-7xl px-4 pb-8 pt-20 md:py-8 lg:px-8">{children}</div>
       </main>
     </div>
   )
