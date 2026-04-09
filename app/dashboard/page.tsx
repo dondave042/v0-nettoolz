@@ -7,11 +7,10 @@ import {
   ShoppingCart,
   TrendingUp,
   AlertCircle,
-  Heart,
+  Wallet,
   Zap,
   ArrowRight,
   CreditCard,
-  Wallet,
   CheckCircle2,
   Clock,
   Package,
@@ -28,7 +27,6 @@ interface UserStats {
   totalOrders: number
   pendingOrders: number
   totalSpent: number
-  wishlistItems: number
 }
 
 interface Order {
@@ -50,46 +48,44 @@ export default function DashboardPage() {
     totalOrders: 0,
     pendingOrders: 0,
     totalSpent: 0,
-    wishlistItems: 0,
   })
   const [recentOrders, setRecentOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (silent = false) => {
     try {
       const res = await fetch("/api/buyers/me")
-      if (res.ok) {
-        const data = await res.json()
-        setUserName(data.buyer?.name || "User")
-
-        const [statsRes, ordersRes] = await Promise.all([
-          fetch("/api/buyers/stats"),
-          fetch("/api/checkout"),
-        ])
-
-        if (statsRes.ok) {
-          const statsData = await statsRes.json()
-          setStats({
-            balance: statsData.balance ?? 0,
-            totalOrders: statsData.totalOrders ?? 0,
-            pendingOrders: statsData.pendingOrders ?? 0,
-            totalSpent: statsData.totalSpent ?? 0,
-            wishlistItems: statsData.wishlistItems ?? 0,
-          })
-        }
-
-        if (ordersRes.ok) {
-          const ordersData = await ordersRes.json()
-          setRecentOrders((ordersData.orders || []).slice(0, 5))
-        }
-      } else {
+      if (!res.ok) {
         router.push("/")
+        return
+      }
+      const data = await res.json()
+      setUserName(data.buyer?.name || "User")
+
+      const [statsRes, ordersRes] = await Promise.all([
+        fetch("/api/buyers/stats"),
+        fetch("/api/checkout"),
+      ])
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json()
+        setStats({
+          balance: parseFloat(data.buyer?.balance ?? 0),
+          totalOrders: statsData.totalOrders ?? 0,
+          pendingOrders: statsData.pendingOrders ?? 0,
+          totalSpent: statsData.totalSpent ?? 0,
+        })
+      }
+
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json()
+        setRecentOrders((ordersData.orders || []).slice(0, 5))
       }
     } catch (error) {
-      console.error("[v0] Failed to fetch user data:", error)
-      toast.error("Failed to load dashboard")
+      console.error("[Dashboard] Failed to fetch data:", error)
+      if (!silent) toast.error("Failed to load dashboard")
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [router])
 
@@ -98,15 +94,11 @@ export default function DashboardPage() {
 
     // Poll every 30 seconds, pausing when the tab is not visible
     const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchDashboardData()
-      }
-    }, 30000)
+      if (!document.hidden) fetchDashboardData(true)
+    }, 30_000)
 
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        fetchDashboardData()
-      }
+      if (document.visibilityState === "visible") fetchDashboardData(true)
     }
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
@@ -120,7 +112,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get("payment_success") === "true") {
-      fetchDashboardData()
+      fetchDashboardData(true)
     }
   }, [fetchDashboardData])
 
@@ -130,6 +122,24 @@ export default function DashboardPage() {
     pending: { icon: Clock, color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/30", label: "Pending" },
     cancelled: { icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-100 dark:bg-orange-900/30", label: "Cancelled" },
   }
+
+  useEffect(() => {
+    fetchDashboardData()
+
+    // Poll every 30 seconds to reflect webhook-driven updates (Korapay payments)
+    const interval = setInterval(() => fetchDashboardData(true), 30_000)
+
+    // Re-fetch immediately when user returns to this tab (e.g., after Korapay redirect)
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchDashboardData(true)
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
+  }, [fetchDashboardData])
 
   if (loading) {
     return (
@@ -226,13 +236,13 @@ export default function DashboardPage() {
               <Card hoverable>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Wishlist Items</p>
-                    <p className="mt-2 text-3xl font-bold text-pink-600">
-                      {stats.wishlistItems}
+                    <p className="text-sm font-medium text-muted-foreground">Account Balance</p>
+                    <p className="mt-2 text-3xl font-bold text-purple-600">
+                      ₦{stats.balance.toLocaleString()}
                     </p>
                   </div>
-                  <div className="h-12 w-12 rounded-lg bg-pink-100/20 flex items-center justify-center">
-                    <Heart className="h-6 w-6 text-pink-600" />
+                  <div className="h-12 w-12 rounded-lg bg-purple-100/20 flex items-center justify-center">
+                    <Wallet className="h-6 w-6 text-purple-600" />
                   </div>
                 </div>
               </Card>

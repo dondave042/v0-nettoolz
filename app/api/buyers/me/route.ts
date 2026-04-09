@@ -13,12 +13,12 @@ export async function GET() {
       )
     }
 
+    // Fetch live balance from DB — JWT does not carry balance
     const sql = getDb()
-    const result = await sql`
-      SELECT balance FROM buyers WHERE id = ${session.id}
+    const rows = await sql`
+      SELECT balance FROM buyers WHERE id = ${session.id} LIMIT 1
     `
-
-    const balance = result.length > 0 ? parseFloat(result[0].balance ?? '0') : 0
+    const balance = rows.length > 0 ? parseFloat(rows[0].balance ?? 0) : 0
 
     return NextResponse.json({ buyer: { ...session, balance } })
   } catch (error) {
