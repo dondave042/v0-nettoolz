@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -11,6 +11,10 @@ import {
   Zap,
   ArrowRight,
   CreditCard,
+  Wallet,
+  CheckCircle2,
+  Clock,
+  Package,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UserHeader } from "@/components/dashboard/user-header"
@@ -20,10 +24,21 @@ import { DashboardFooter } from "@/components/dashboard/footer"
 import { toast } from "sonner"
 
 interface UserStats {
+  balance: number
   totalOrders: number
   pendingOrders: number
   totalSpent: number
   wishlistItems: number
+}
+
+interface Order {
+  id: number
+  product_name: string
+  quantity: number
+  total_price: string
+  payment_status: string
+  payment_method_name: string
+  created_at: string
 }
 
 export default function DashboardPage() {
@@ -31,45 +46,90 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userName, setUserName] = useState("User")
   const [stats, setStats] = useState<UserStats>({
+    balance: 0,
     totalOrders: 0,
     pendingOrders: 0,
     totalSpent: 0,
     wishlistItems: 0,
   })
+  const [recentOrders, setRecentOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const res = await fetch("/api/buyers/me")
-        if (res.ok) {
-          const data = await res.json()
-          setUserName(data.buyer?.name || "User")
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/buyers/me")
+      if (res.ok) {
+        const data = await res.json()
+        setUserName(data.buyer?.name || "User")
 
-          // Fetch user stats
-          const statsRes = await fetch("/api/buyers/stats")
-          if (statsRes.ok) {
-            const statsData = await statsRes.json()
-            setStats({
-              totalOrders: statsData.totalOrders || 0,
-              pendingOrders: statsData.pendingOrders || 0,
-              totalSpent: statsData.totalSpent || 0,
-              wishlistItems: statsData.wishlistItems || 0,
-            })
-          }
-        } else {
-          router.push("/")
+        const [statsRes, ordersRes] = await Promise.all([
+          fetch("/api/buyers/stats"),
+          fetch("/api/checkout"),
+        ])
+
+        if (statsRes.ok) {
+          const statsData = await statsRes.json()
+          setStats({
+            balance: statsData.balance ?? 0,
+            totalOrders: statsData.totalOrders ?? 0,
+            pendingOrders: statsData.pendingOrders ?? 0,
+            totalSpent: statsData.totalSpent ?? 0,
+            wishlistItems: statsData.wishlistItems ?? 0,
+          })
         }
-      } catch (error) {
-        console.error("[v0] Failed to fetch user data:", error)
-        toast.error("Failed to load dashboard")
-      } finally {
-        setLoading(false)
+
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json()
+          setRecentOrders((ordersData.orders || []).slice(0, 5))
+        }
+      } else {
+        router.push("/")
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch user data:", error)
+      toast.error("Failed to load dashboard")
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+
+  useEffect(() => {
+    fetchDashboardData()
+
+    // Poll every 30 seconds, pausing when the tab is not visible
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchDashboardData()
+      }
+    }, 30000)
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchDashboardData()
       }
     }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
 
-    checkSession()
-  }, [router])
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [fetchDashboardData])
+
+  // Refresh when returning to page after payment
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get("payment_success") === "true") {
+      fetchDashboardData()
+    }
+  }, [fetchDashboardData])
+
+  const paymentStatusConfig = {
+    completed: { icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/30", label: "Paid" },
+    failed: { icon: AlertCircle, color: "text-red-600", bg: "bg-red-100 dark:bg-red-900/30", label: "Failed" },
+    pending: { icon: Clock, color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/30", label: "Pending" },
+    cancelled: { icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-100 dark:bg-orange-900/30", label: "Cancelled" },
+  }
 
   if (loading) {
     return (
@@ -99,6 +159,24 @@ export default function DashboardPage() {
               <p className="text-muted-foreground">
                 Manage your purchases and explore new products
               </p>
+            </div>
+
+            {/* Balance Card */}
+            <div className="mb-8">
+              <Card>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Account Balance</p>
+                    <p className="mt-2 text-4xl font-bold text-[#38bdf8]">
+                      ₦{stats.balance.toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">Available for purchases</p>
+                  </div>
+                  <div className="h-16 w-16 rounded-xl bg-[#38bdf8]/10 flex items-center justify-center">
+                    <Wallet className="h-8 w-8 text-[#38bdf8]" />
+                  </div>
+                </div>
+              </Card>
             </div>
 
             {/* Stats Grid */}
@@ -157,6 +235,64 @@ export default function DashboardPage() {
                     <Heart className="h-6 w-6 text-pink-600" />
                   </div>
                 </div>
+              </Card>
+            </div>
+
+            {/* Purchase History */}
+            <div className="mb-8">
+              <Card
+                header={
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-bold text-foreground">Recent Purchase History</h2>
+                    <Link href="/my-purchases" className="text-sm text-[#38bdf8] hover:text-[#0ea5e9]">
+                      View all →
+                    </Link>
+                  </div>
+                }
+              >
+                {recentOrders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                    <p className="text-muted-foreground text-sm">No purchases yet</p>
+                    <Link href="/#products">
+                      <Button size="sm" className="mt-4 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]">
+                        Browse Products
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {recentOrders.map((order) => {
+                      const statusCfg =
+                        paymentStatusConfig[order.payment_status as keyof typeof paymentStatusConfig] ||
+                        paymentStatusConfig.pending
+                      const StatusIcon = statusCfg.icon
+                      return (
+                        <div key={order.id} className="flex items-center justify-between py-3 gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`rounded-lg p-2 ${statusCfg.bg} flex-shrink-0`}>
+                              <StatusIcon className={`h-4 w-4 ${statusCfg.color}`} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground text-sm truncate">{order.product_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(order.created_at).toLocaleDateString()} · {order.payment_method_name}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-foreground">
+                              ₦{parseFloat(order.total_price).toLocaleString()}
+                            </p>
+                            <span className={`text-xs font-medium ${statusCfg.color}`}>
+                              {statusCfg.label}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </Card>
             </div>
 
