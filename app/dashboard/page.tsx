@@ -54,23 +54,25 @@ export default function DashboardPage() {
 
   const fetchDashboardData = useCallback(async (silent = false) => {
     try {
-      const res = await fetch("/api/buyers/me")
-      if (!res.ok) {
-        router.push("/")
+      // Check authentication first
+      const meRes = await fetch("/api/buyers/me")
+      if (!meRes.ok) {
+        router.push("/login")
         return
       }
-      const data = await res.json()
-      setUserName(data.buyer?.name || "User")
+      const meData = await meRes.json()
+      setUserName(meData.buyer?.name || "User")
 
+      // Fetch stats and orders in parallel
       const [statsRes, ordersRes] = await Promise.all([
         fetch("/api/buyers/stats"),
-        fetch("/api/checkout"),
+        fetch("/api/orders"),
       ])
 
       if (statsRes.ok) {
         const statsData = await statsRes.json()
         setStats({
-          balance: parseFloat(data.buyer?.balance ?? 0),
+          balance: parseFloat(meData.buyer?.balance ?? 0),
           totalOrders: statsData.totalOrders ?? 0,
           pendingOrders: statsData.pendingOrders ?? 0,
           totalSpent: statsData.totalSpent ?? 0,
@@ -126,8 +128,11 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchDashboardData()
 
-    // Poll every 30 seconds to reflect webhook-driven updates (Korapay payments)
-    const interval = setInterval(() => fetchDashboardData(true), 30_000)
+    // Poll every 5 seconds for webhook-driven updates (Korapay payment completion)
+    // This catches real-time balance/order status changes from payment webhooks
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchDashboardData(true)
+    }, 5_000)
 
     // Re-fetch immediately when user returns to this tab (e.g., after Korapay redirect)
     const handleVisibility = () => {
