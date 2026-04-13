@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   ShoppingCart,
+  CreditCard,
   Heart,
   HelpCircle,
   LogOut,
@@ -19,6 +20,7 @@ interface UserSidebarProps {
 const userLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/my-purchases", label: "Order History", icon: ShoppingCart },
+  { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart },
   { href: "/dashboard/support", label: "Support", icon: HelpCircle },
 ]

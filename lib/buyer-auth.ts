@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { jwtVerify, SignJWT } from 'jose'
 import { getDb } from './db'
+import { getBuyerWelcomeBonus } from './welcome-bonus'
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'buyer-secret-key-change-in-production'
@@ -62,6 +63,8 @@ export async function buyerSignup(email: string, password: string, name: string)
   const sql = getDb()
 
   try {
+    const welcomeBonus = await getBuyerWelcomeBonus()
+
     // Check if buyer already exists
     const existing = await sql`
       SELECT id FROM buyers WHERE email = ${email}
@@ -76,8 +79,8 @@ export async function buyerSignup(email: string, password: string, name: string)
 
     // Create new buyer
     const result = await sql`
-      INSERT INTO buyers (email, password_hash, full_name)
-      VALUES (${email}, ${passwordHash}, ${name})
+      INSERT INTO buyers (email, password_hash, full_name, balance)
+      VALUES (${email}, ${passwordHash}, ${name}, ${welcomeBonus})
       RETURNING id, email, full_name as name, balance
     `
 
@@ -85,10 +88,23 @@ export async function buyerSignup(email: string, password: string, name: string)
       ...result[0],
       balance: parseFloat(result[0].balance ?? 0),
     }
+
+    if (welcomeBonus > 0) {
+      await sql`
+        INSERT INTO deposits (buyer_id, amount, reference_id, status)
+        VALUES (
+          ${buyer.id},
+          ${welcomeBonus},
+          ${`WELCOME-BONUS-${buyer.id}-${Date.now()}`},
+          'completed'
+        )
+      `
+    }
+
     const token = await createBuyerToken(buyer)
     await setBuyerCookie(token)
 
-    return { success: true, buyer, token }
+    return { success: true, buyer, token, welcomeBonus }
   } catch (error: any) {
     return { success: false, error: error.message }
   }
@@ -118,6 +134,7 @@ export async function buyerLogin(email: string, password: string) {
       id: buyer.id,
       email: buyer.email,
       name: buyer.name,
+      balance: parseFloat(buyer.balance ?? 0),
     })
     await setBuyerCookie(token)
 

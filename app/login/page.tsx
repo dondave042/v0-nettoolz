@@ -1,20 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
+import { AuthBalanceModal } from "@/components/auth/auth-balance-modal"
 import { Button } from "@/components/ui/button"
-import { formatNaira } from "@/lib/currency"
 import { toast } from "sonner"
+
+type LoginSuccessState = {
+  balance: number
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [successState, setSuccessState] = useState<LoginSuccessState | null>(null)
   const [form, setForm] = useState({
     email: "",
     password: "",
   })
+
+  useEffect(() => {
+    if (!successState) return
+
+    const timeoutId = window.setTimeout(() => {
+      router.push("/dashboard")
+    }, 1800)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [router, successState])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,8 +46,7 @@ export default function LoginPage() {
 
       if (res.ok) {
         const balance = Number(data.buyer?.balance ?? 0)
-        toast.success(`Logged in. Balance: ${formatNaira(balance)}`)
-        router.push("/dashboard")
+        setSuccessState({ balance })
       } else {
         toast.error(data.error || "Failed to login")
       }
@@ -46,6 +60,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
+      <AuthBalanceModal
+        open={!!successState}
+        title="Login successful"
+        description="Your account is ready. We are taking you to the dashboard."
+        balance={successState?.balance ?? 0}
+        onOpenChange={(open) => {
+          if (!open) router.push("/dashboard")
+        }}
+      />
+
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-8">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
