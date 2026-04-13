@@ -8,6 +8,7 @@ import {
   TrendingUp,
   AlertCircle,
   Wallet,
+  Gift,
   Zap,
   ArrowRight,
   CreditCard,
@@ -39,6 +40,17 @@ interface Order {
   created_at: string
 }
 
+interface Deposit {
+  id: string
+  direction: 'credit' | 'debit'
+  amount: number
+  status: string
+  reference_id: string | null
+  title: string
+  type: string
+  occurred_at: string
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -50,6 +62,7 @@ export default function DashboardPage() {
     totalSpent: 0,
   })
   const [recentOrders, setRecentOrders] = useState<Order[]>([])
+  const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchDashboardData = useCallback(async (silent = false) => {
@@ -63,10 +76,11 @@ export default function DashboardPage() {
       const meData = await meRes.json()
       setUserName(meData.buyer?.name || "User")
 
-      // Fetch stats and orders in parallel
-      const [statsRes, ordersRes] = await Promise.all([
+      // Fetch stats, orders, and balance activity in parallel
+      const [statsRes, ordersRes, depositsRes] = await Promise.all([
         fetch("/api/buyers/stats"),
         fetch("/api/orders"),
+        fetch("/api/transactions"),
       ])
 
       if (statsRes.ok) {
@@ -83,6 +97,11 @@ export default function DashboardPage() {
         const ordersData = await ordersRes.json()
         setRecentOrders((ordersData.orders || []).slice(0, 5))
       }
+
+      if (depositsRes.ok) {
+        const depositsData = await depositsRes.json()
+        setRecentDeposits((depositsData.transactions || []).slice(0, 5))
+      }
     } catch (error) {
       console.error("[Dashboard] Failed to fetch data:", error)
       if (!silent) toast.error("Failed to load dashboard")
@@ -90,33 +109,6 @@ export default function DashboardPage() {
       if (!silent) setLoading(false)
     }
   }, [router])
-
-  useEffect(() => {
-    fetchDashboardData()
-
-    // Poll every 30 seconds, pausing when the tab is not visible
-    const interval = setInterval(() => {
-      if (!document.hidden) fetchDashboardData(true)
-    }, 30_000)
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") fetchDashboardData(true)
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-    }
-  }, [fetchDashboardData])
-
-  // Refresh when returning to page after payment
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get("payment_success") === "true") {
-      fetchDashboardData(true)
-    }
-  }, [fetchDashboardData])
 
   const paymentStatusConfig = {
     completed: { icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/30", label: "Paid" },
@@ -306,6 +298,47 @@ export default function DashboardPage() {
                         </div>
                       )
                     })}
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            <div className="mb-8">
+              <Card
+                header={
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-bold text-foreground">Recent Balance Activity</h2>
+                    <Link href="/transactions" className="text-sm text-[#38bdf8] hover:text-[#0ea5e9]">
+                      View all →
+                    </Link>
+                  </div>
+                }
+              >
+                {recentDeposits.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <Gift className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">No balance activity yet</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {recentDeposits.map((deposit) => (
+                      <div key={deposit.id} className="flex items-center justify-between gap-4 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${deposit.direction === 'credit' ? 'bg-emerald-100/40' : 'bg-red-100/40'}`}>
+                            <Gift className={`h-4 w-4 ${deposit.direction === 'credit' ? 'text-emerald-600' : 'text-red-600'}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{deposit.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(deposit.occurred_at).toLocaleDateString()} · {deposit.status}
+                            </p>
+                          </div>
+                        </div>
+                        <p className={`flex-shrink-0 font-bold ${deposit.direction === 'credit' ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {deposit.direction === 'credit' ? '+' : '-'}₦{deposit.amount.toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </Card>

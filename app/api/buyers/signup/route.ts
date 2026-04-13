@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createBuyerToken } from '@/lib/buyer-auth'
 import { getDb } from '@/lib/db'
+import { getBuyerWelcomeBonus } from '@/lib/welcome-bonus'
 
 export async function POST(request: Request) {
   try {
     const { email, password, name } = await request.json()
+    const welcomeBonus = await getBuyerWelcomeBonus()
 
     if (!email || !password || !name) {
       return NextResponse.json(
@@ -39,8 +41,8 @@ export async function POST(request: Request) {
 
     // Create new buyer
     const result = await sql`
-      INSERT INTO buyers (email, password_hash, full_name)
-      VALUES (${email}, ${passwordHash}, ${name})
+      INSERT INTO buyers (email, password_hash, full_name, balance)
+      VALUES (${email}, ${passwordHash}, ${name}, ${welcomeBonus})
       RETURNING id, email, full_name as name, balance
     `
 
@@ -48,11 +50,24 @@ export async function POST(request: Request) {
       ...result[0],
       balance: parseFloat(result[0].balance ?? 0),
     }
+
+    if (welcomeBonus > 0) {
+      await sql`
+        INSERT INTO deposits (buyer_id, amount, reference_id, status)
+        VALUES (
+          ${buyer.id},
+          ${welcomeBonus},
+          ${`WELCOME-BONUS-${buyer.id}-${Date.now()}`},
+          'completed'
+        )
+      `
+    }
+
     const token = await createBuyerToken(buyer)
 
     // Create response with cookie
     const response = NextResponse.json(
-      { success: true, buyer },
+      { success: true, buyer, welcomeBonus },
       { status: 201 }
     )
 
