@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatNaira } from "@/lib/currency"
 import { toast } from "sonner"
 
 export default function LoginPage() {
@@ -29,8 +30,9 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (res.ok) {
-        toast.success("Logged in successfully!")
-        router.push("/products")
+        const balance = Number(data.buyer?.balance ?? 0)
+        toast.success(`Logged in. Balance: ${formatNaira(balance)}`)
+        router.push("/dashboard")
       } else {
         toast.error(data.error || "Failed to login")
       }

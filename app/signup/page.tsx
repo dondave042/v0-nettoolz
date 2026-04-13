@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatNaira } from "@/lib/currency"
 import { toast } from "sonner"
 
 export default function SignupPage() {
@@ -41,8 +42,9 @@ export default function SignupPage() {
       const data = await res.json()
 
       if (res.ok) {
-        toast.success("Account created successfully!")
-        router.push("/products")
+        const balance = Number(data.buyer?.balance ?? 0)
+        toast.success(`Account created. Balance: ${formatNaira(balance)}`)
+        router.push("/dashboard")
       } else {
         toast.error(data.error || "Failed to create account")
       }

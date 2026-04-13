@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createBuyerToken, setBuyerCookie } from '@/lib/buyer-auth'
+import { createBuyerToken } from '@/lib/buyer-auth'
 import { getDb } from '@/lib/db'
 
 export async function POST(request: Request) {
@@ -41,10 +41,13 @@ export async function POST(request: Request) {
     const result = await sql`
       INSERT INTO buyers (email, password_hash, full_name)
       VALUES (${email}, ${passwordHash}, ${name})
-      RETURNING id, email, full_name as name
+      RETURNING id, email, full_name as name, balance
     `
 
-    const buyer = result[0]
+    const buyer = {
+      ...result[0],
+      balance: parseFloat(result[0].balance ?? 0),
+    }
     const token = await createBuyerToken(buyer)
 
     // Create response with cookie

@@ -10,11 +10,12 @@ export interface BuyerSession {
   id: number
   email: string
   name: string
+  balance?: number
   iat?: number
   exp?: number
 }
 
-export async function createBuyerToken(buyer: { id: number; email: string; name: string }) {
+export async function createBuyerToken(buyer: { id: number; email: string; name: string; balance?: number }) {
   const token = await new SignJWT(buyer)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -77,10 +78,13 @@ export async function buyerSignup(email: string, password: string, name: string)
     const result = await sql`
       INSERT INTO buyers (email, password_hash, full_name)
       VALUES (${email}, ${passwordHash}, ${name})
-      RETURNING id, email, full_name as name
+      RETURNING id, email, full_name as name, balance
     `
 
-    const buyer = result[0]
+    const buyer = {
+      ...result[0],
+      balance: parseFloat(result[0].balance ?? 0),
+    }
     const token = await createBuyerToken(buyer)
     await setBuyerCookie(token)
 
@@ -97,7 +101,7 @@ export async function buyerLogin(email: string, password: string) {
     const passwordHash = Buffer.from(`${password}${email}`).toString('base64')
 
     const result = await sql`
-      SELECT id, email, full_name as name, password_hash FROM buyers WHERE email = ${email}
+      SELECT id, email, full_name as name, balance, password_hash FROM buyers WHERE email = ${email}
     `
 
     if (result.length === 0) {
@@ -119,7 +123,12 @@ export async function buyerLogin(email: string, password: string) {
 
     return {
       success: true,
-      buyer: { id: buyer.id, email: buyer.email, name: buyer.name },
+      buyer: {
+        id: buyer.id,
+        email: buyer.email,
+        name: buyer.name,
+        balance: parseFloat(buyer.balance ?? 0),
+      },
       token,
     }
   } catch (error: any) {
