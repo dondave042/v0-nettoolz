@@ -1,21 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
+import { AuthBalanceModal } from "@/components/auth/auth-balance-modal"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+
+type SignupSuccessState = {
+  balance: number
+  welcomeBonus: number
+}
 
 export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [successState, setSuccessState] = useState<SignupSuccessState | null>(null)
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   })
+
+  useEffect(() => {
+    if (!successState) return
+
+    const timeoutId = window.setTimeout(() => {
+      router.push("/dashboard")
+    }, 1800)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [router, successState])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,8 +58,9 @@ export default function SignupPage() {
       const data = await res.json()
 
       if (res.ok) {
-        toast.success("Account created successfully!")
-        router.push("/products")
+        const balance = Number(data.buyer?.balance ?? 0)
+        const welcomeBonus = Number(data.welcomeBonus ?? balance)
+        setSuccessState({ balance, welcomeBonus })
       } else {
         toast.error(data.error || "Failed to create account")
       }
@@ -56,6 +74,17 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
+      <AuthBalanceModal
+        open={!!successState}
+        title="Account created"
+        description="Your new account has been funded and is ready to use."
+        balance={successState?.balance ?? 0}
+        welcomeBonus={successState?.welcomeBonus}
+        onOpenChange={(open) => {
+          if (!open) router.push("/dashboard")
+        }}
+      />
+
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-8">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-foreground">Create Account</h1>

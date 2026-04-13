@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   KeyRound,
+  Settings,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -23,6 +24,7 @@ const links = [
   { href: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
   { href: "/admin/credentials-inventory", label: "Credentials", icon: KeyRound },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
 ]
 
