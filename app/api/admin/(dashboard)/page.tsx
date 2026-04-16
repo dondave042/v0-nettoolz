@@ -33,7 +33,7 @@ export default async function AdminDashboardPage() {
   const [orders] = await sql`SELECT COUNT(*)::int as count FROM orders`
   const [announcements] = await sql`SELECT COUNT(*)::int as count FROM announcements WHERE is_active = true`
   const [totalStock] = await sql`SELECT COALESCE(SUM(available_qty), 0)::int as total FROM products`
-  
+
   // Payment stats
   const [paymentStats] = await sql`
     SELECT 
@@ -76,7 +76,7 @@ export default async function AdminDashboardPage() {
     ORDER BY o.created_at DESC
     LIMIT 8
   `
-  
+
   const recentProducts = await sql`
     SELECT p.name, p.price, p.available_qty, p.badge, c.name as category_name
     FROM products p LEFT JOIN categories c ON p.category_id = c.id
@@ -90,10 +90,10 @@ export default async function AdminDashboardPage() {
         description="Welcome back! Here’s a live overview of sales, inventory, payments, and recent activity."
         action={
           <Link
-            href="/admin/products"
+            href="/products"
             className="inline-flex items-center gap-2 rounded-lg bg-[#38bdf8] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0ea5e9]"
           >
-            Manage products
+            Open catalog
             <ArrowRight className="h-4 w-4" />
           </Link>
         }
@@ -198,8 +198,8 @@ export default async function AdminDashboardPage() {
         <div className="rounded-xl border border-border bg-card xl:col-span-2">
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <h2 className="font-semibold text-foreground">Low Stock Alerts</h2>
-            <Link href="/admin/products" className="text-xs font-medium text-[#38bdf8] hover:underline">
-              Open catalog
+            <Link href="/products" className="text-xs font-medium text-[#38bdf8] hover:underline">
+              View storefront
             </Link>
           </div>
           <div className="space-y-2 px-6 py-4">
