@@ -1,24 +1,18 @@
-"use client"
-
-import { useState, useEffect, useCallback } from "react"
-import { Plus, Pencil, Trash2, Loader2, X, Upload, Image as ImageIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
-
-interface Product {
-  id: number
-  sku: string
-  name: string
-  description: string
-  price: string
-  available_qty: number
-  category_id: number | null
-  badge: string | null
-  is_featured: boolean
-  category_name: string
-  images: string[] | null
-  product_username: string | null
-  product_password: string | null
+// DEPRECATED: This page component should not be under app/api/. DELETE this file.
+export default function DeprecatedPage() { return null }
+id: number
+sku: string
+name: string
+description: string
+price: string
+available_qty: number
+category_id: number | null
+badge: string | null
+is_featured: boolean
+category_name: string
+images: string[] | null
+product_username: string | null
+product_password: string | null
 }
 
 interface Category {

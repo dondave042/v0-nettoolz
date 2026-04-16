@@ -1,16 +1,10 @@
-"use client"
-
-import { useState, useEffect, useCallback } from "react"
-import { Plus, Pencil, Trash2, Loader2, X, Eye, EyeOff } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
-
-interface Announcement {
-  id: number
-  title: string
-  content: string
-  is_active: boolean
-  created_at: string
+// DEPRECATED: This page component should not be under app/api/. DELETE this file.
+export default function DeprecatedPage() { return null }
+id: number
+title: string
+content: string
+is_active: boolean
+created_at: string
 }
 
 const emptyForm = { title: "", content: "", is_active: true }

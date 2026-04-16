@@ -1,23 +1,6 @@
-import { redirect } from "next/navigation"
-import { isAuthenticated } from "@/lib/auth"
-import { AdminSidebar } from "@/components/admin/admin-sidebar"
-
-export default async function AdminDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const authenticated = await isAuthenticated()
-  if (!authenticated) {
-    redirect("/admin/login")
-  }
-
-  return (
-    <div className="flex min-h-screen bg-background">
-      <AdminSidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl px-4 pb-8 pt-20 md:py-8 lg:px-8">{children}</div>
-      </main>
-    </div>
-  )
+// DEPRECATED: This file is no longer used.
+// The layout has been moved to app/admin/layout.tsx.
+// DELETE this entire (dashboard) directory.
+export default function DeprecatedLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
 }

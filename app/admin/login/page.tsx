@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { getAdminSession } from "@/lib/admin-auth"
 import { hasAdminUsers } from "@/lib/admin-users"
-import AdminLoginPage from "../../api/admin/login/page"
+import { AdminLoginForm } from "@/components/admin/admin-login-form"
 
 export default async function AdminLoginRoutePage() {
   const session = await getAdminSession()
@@ -13,5 +13,5 @@ export default async function AdminLoginRoutePage() {
     redirect("/admin/setup")
   }
 
-  return <AdminLoginPage />
+  return <AdminLoginForm />
 }

@@ -1,17 +1,11 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Plus, Trash2, Loader2, X, Eye, EyeOff } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
-
-interface Credential {
-  id: number
-  product_id: number
-  username: string
-  password: string
-  assigned_to_buyer_id: number | null
-  created_at: string
+// DEPRECATED: This page component should not be under app/api/. DELETE this file.
+export default function DeprecatedPage() { return null }
+id: number
+product_id: number
+username: string
+password: string
+assigned_to_buyer_id: number | null
+created_at: string
 }
 
 interface Product {
@@ -273,11 +267,10 @@ export default function CredentialsInventoryPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                          cred.assigned_to_buyer_id
+                        className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${cred.assigned_to_buyer_id
                             ? "bg-blue-100 text-blue-700"
                             : "bg-green-100 text-green-700"
-                        }`}
+                          }`}
                       >
                         {cred.assigned_to_buyer_id ? "Assigned" : "Available"}
                       </span>
