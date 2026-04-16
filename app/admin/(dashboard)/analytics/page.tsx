@@ -116,7 +116,7 @@ export default async function AnalyticsPage() {
             </div>
 
             {/* Top Products */}
-            <Card header={<h2 className="font-bold text-foreground">Top Selling Products</h2>}>
+            <Card header={<h2 className="font-bold text-foreground">Top Selling Products</h2>}> 
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
@@ -150,7 +150,7 @@ export default async function AnalyticsPage() {
             </Card>
 
             {/* Payment Method Stats */}
-            <Card header={<h2 className="font-bold text-foreground">Payment Method Usage</h2>}>
+            <Card header={<h2 className="font-bold text-foreground">Payment Method Usage</h2>}> 
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
@@ -184,7 +184,7 @@ export default async function AnalyticsPage() {
             </Card>
 
             {/* Daily Stats Table */}
-            <Card header={<h2 className="font-bold text-foreground">Daily Statistics</h2>}>
+            <Card header={<h2 className="font-bold text-foreground">Daily Statistics</h2>}> 
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
