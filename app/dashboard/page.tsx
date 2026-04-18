@@ -15,8 +15,20 @@ import {
   CheckCircle2,
   Clock,
   Package,
+  Plus,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { UserHeader } from "@/components/dashboard/user-header"
 import { UserSidebar } from "@/components/dashboard/user-sidebar"
 import { Card } from "@/components/dashboard/card"
@@ -65,6 +77,11 @@ export default function DashboardPage() {
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Fund Account state
+  const [fundDialogOpen, setFundDialogOpen] = useState(false)
+  const [fundAmount, setFundAmount] = useState("")
+  const [fundLoading, setFundLoading] = useState(false)
+
   const fetchDashboardData = useCallback(async (silent = false) => {
     try {
       // Check authentication first
@@ -110,6 +127,42 @@ export default function DashboardPage() {
     }
   }, [router])
 
+  const handleFundAccount = async () => {
+    const amount = parseFloat(fundAmount)
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount")
+      return
+    }
+
+    setFundLoading(true)
+    try {
+      const res = await fetch("/api/deposits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || "Failed to initiate deposit")
+        return
+      }
+
+      if (data.checkout_url) {
+        toast.success("Redirecting to payment...")
+        window.location.href = data.checkout_url
+      } else {
+        toast.error("Payment checkout URL not available")
+      }
+    } catch (error) {
+      console.error("[Dashboard] Fund account error:", error)
+      toast.error("Failed to process deposit")
+    } finally {
+      setFundLoading(false)
+    }
+  }
+
   const paymentStatusConfig = {
     completed: { icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/30", label: "Paid" },
     failed: { icon: AlertCircle, color: "text-red-600", bg: "bg-red-100 dark:bg-red-900/30", label: "Failed" },
@@ -152,7 +205,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <UserHeader onMenuToggle={setSidebarOpen} userName={userName} />
-      
+
       <div className="flex flex-1">
         <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -179,8 +232,67 @@ export default function DashboardPage() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Available for purchases</p>
                   </div>
-                  <div className="h-16 w-16 rounded-xl bg-[#38bdf8]/10 flex items-center justify-center">
-                    <Wallet className="h-8 w-8 text-[#38bdf8]" />
+                  <div className="flex items-center gap-3">
+                    <Dialog open={fundDialogOpen} onOpenChange={setFundDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-green-600 text-white hover:bg-green-700">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Fund Account
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Fund Your Account</DialogTitle>
+                          <DialogDescription>
+                            Enter the amount you want to deposit into your account balance.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                          <label className="text-sm font-medium text-foreground mb-2 block">
+                            Amount (₦)
+                          </label>
+                          <Input
+                            type="number"
+                            min="100"
+                            max="1000000"
+                            step="100"
+                            placeholder="e.g. 5000"
+                            value={fundAmount}
+                            onChange={(e) => setFundAmount(e.target.value)}
+                            disabled={fundLoading}
+                          />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Minimum: ₦100 · Maximum: ₦1,000,000
+                          </p>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setFundDialogOpen(false)}
+                            disabled={fundLoading}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            className="bg-green-600 text-white hover:bg-green-700"
+                            onClick={handleFundAccount}
+                            disabled={fundLoading || !fundAmount}
+                          >
+                            {fundLoading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>Proceed to Payment</>
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    <div className="h-16 w-16 rounded-xl bg-[#38bdf8]/10 flex items-center justify-center">
+                      <Wallet className="h-8 w-8 text-[#38bdf8]" />
+                    </div>
                   </div>
                 </div>
               </Card>

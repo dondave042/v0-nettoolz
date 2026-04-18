@@ -108,6 +108,52 @@ async function findOrderByReference(
   return result.length > 0 ? (result[0] as any) : null;
 }
 
+async function findDepositByReference(
+  sql: ReturnType<typeof getDb>,
+  reference: string
+): Promise<{ id: string; buyer_id: string; amount: number; status: string } | null> {
+  const result = await sql`
+    SELECT id, buyer_id, amount, status
+    FROM deposits
+    WHERE reference_id = ${reference}
+    LIMIT 1
+  `;
+  return result.length > 0 ? (result[0] as any) : null;
+}
+
+async function handleDepositCompleted(
+  sql: ReturnType<typeof getDb>,
+  deposit: { id: string; buyer_id: string; amount: number }
+): Promise<void> {
+  // Mark deposit as completed
+  await sql`
+    UPDATE deposits
+    SET status = 'completed', updated_at = NOW()
+    WHERE id = ${deposit.id}
+  `;
+
+  // Credit the buyer's balance
+  await sql`
+    UPDATE buyers
+    SET balance = balance + ${deposit.amount}, updated_at = NOW()
+    WHERE id = ${deposit.buyer_id}
+  `;
+
+  console.log(`[Webhook] Deposit ${deposit.id} completed, credited ₦${deposit.amount} to buyer ${deposit.buyer_id}`);
+}
+
+async function handleDepositFailed(
+  sql: ReturnType<typeof getDb>,
+  deposit: { id: string }
+): Promise<void> {
+  await sql`
+    UPDATE deposits
+    SET status = 'failed', updated_at = NOW()
+    WHERE id = ${deposit.id}
+  `;
+  console.log(`[Webhook] Deposit ${deposit.id} failed`);
+}
+
 async function handlePaymentCompleted(
   sql: ReturnType<typeof getDb>,
   payload: KorapayWebhookPayload,
@@ -242,6 +288,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
+    // Route deposit references (DEP-*) separately from order references
+    const isDeposit = reference.startsWith('DEP-');
+
+    if (isDeposit) {
+      const deposit = await findDepositByReference(sql, reference);
+      if (!deposit) {
+        console.warn('[Webhook] No deposit found for reference:', reference);
+        await logWebhookEvent(sql, reference, null, eventType, payload, 'failed', 'Deposit not found');
+        return NextResponse.json({ error: 'Deposit not found' }, { status: 404 });
+      }
+
+      if (deposit.status === 'completed') {
+        console.log('[Webhook] Deposit already completed:', reference);
+        await logWebhookEvent(sql, reference, null, eventType, payload, 'skipped', 'Deposit already completed');
+        return NextResponse.json({ success: true }, { status: 200 });
+      }
+
+      switch (eventType) {
+        case 'charge.completed':
+          await handleDepositCompleted(sql, deposit);
+          await logWebhookEvent(sql, reference, null, eventType, payload, 'processed');
+          break;
+        case 'charge.failed':
+        case 'charge.cancelled':
+          await handleDepositFailed(sql, deposit);
+          await logWebhookEvent(sql, reference, null, eventType, payload, 'processed');
+          break;
+        default:
+          await logWebhookEvent(sql, reference, null, eventType, payload, 'skipped', 'Unhandled event type');
+      }
+
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
     const order = await findOrderByReference(sql, reference);
 
     if (!order) {
@@ -282,7 +362,7 @@ export async function POST(request: NextRequest) {
       payload,
       'failed',
       error instanceof Error ? error.message : 'Unknown error'
-    ).catch(() => {});
+    ).catch(() => { });
 
     if (error instanceof PaymentWebhookError) {
       return NextResponse.json({ error: error.message }, { status: (error as any).statusCode ?? 500 });
