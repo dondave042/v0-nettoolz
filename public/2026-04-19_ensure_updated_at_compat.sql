@@ -70,8 +70,7 @@ BEGIN
 		FOR EACH ROW
     EXECUTE FUNCTION
     public.set_updated_at_timestamp
-    ();
-END
+   END
 IF;
 
 	IF EXISTS (
