@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth"
-import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { AdminDashboardShell } from "@/components/admin/admin-dashboard-shell"
 
 export default async function AdminDashboardLayout({
     children,
@@ -12,12 +12,5 @@ export default async function AdminDashboardLayout({
         redirect("/admin/login")
     }
 
-    return (
-        <div className="flex min-h-screen bg-background">
-            <AdminSidebar />
-            <main className="flex-1 overflow-auto">
-                <div className="mx-auto max-w-7xl px-4 pb-8 pt-20 md:py-8 lg:px-8">{children}</div>
-            </main>
-        </div>
-    )
+    return <AdminDashboardShell>{children}</AdminDashboardShell>
 }
