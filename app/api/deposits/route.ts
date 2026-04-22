@@ -13,6 +13,7 @@ type KorapayInitResult = {
     ok: boolean
     status: number
     payload: any
+    endpoint?: string
 }
 
 async function safeParseJson(response: Response): Promise<any> {
@@ -44,19 +45,43 @@ async function initializeKorapayCharge(
     apiKey: string,
     payload: Record<string, any>
 ): Promise<KorapayInitResult> {
-    const response = await fetch(`${apiBaseUrl}/checkout/initialize`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-    })
+    const endpointCandidates = ['/checkout/initialize', '/charges/initialize']
+    let lastResult: KorapayInitResult | null = null
 
-    return {
-        ok: response.ok,
-        status: response.status,
-        payload: await safeParseJson(response),
+    for (const endpoint of endpointCandidates) {
+        const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(payload),
+        })
+
+        const result: KorapayInitResult = {
+            ok: response.ok,
+            status: response.status,
+            payload: await safeParseJson(response),
+            endpoint,
+        }
+
+        if (result.ok) {
+            return result
+        }
+
+        const message = String(result.payload?.message || result.payload?.error || '').toLowerCase()
+        const isNotFound = result.status === 404 || message.includes('resource not found') || message.includes('not found')
+
+        lastResult = result
+        if (!isNotFound) {
+            return result
+        }
+    }
+
+    return lastResult || {
+        ok: false,
+        status: 502,
+        payload: { message: 'Failed to initialize Korapay charge' },
     }
 }
 
@@ -157,38 +182,6 @@ export async function POST(request: Request) {
             redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
         }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-        // Use checkout/initialize to get a hosted checkout URL
-        const korapayEndpoint = `${config.korapayApiBaseUrl}/checkout/initialize`
-
-        let korapayResponse = await fetch(korapayEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${config.korapayApiKeySecret}`,
-            },
-            body: JSON.stringify(requestPayload),
-        })
-
-        let responsePayload = await safeParseJson(korapayResponse)
-
-        // Retry with amount in major units (naira) if we get an input validation error.
-        if (!korapayResponse.ok && looksLikeInputValidationError(responsePayload)) {
-            korapayResponse = await fetch(korapayEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${config.korapayApiKeySecret}`,
-=======
         const attempts: Array<Record<string, any>> = [
             requestPayload,
             { ...requestPayload, amount: parsedAmount },
@@ -207,266 +200,14 @@ export async function POST(request: Request) {
                 reference: referenceId,
                 customer: {
                     email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const attempts: Array<Record<string, any>> = [
-            requestPayload,
-            { ...requestPayload, amount: parsedAmount },
-            {
-                ...requestPayload,
-                metadata: undefined,
-            },
-            {
-                ...requestPayload,
-                amount: parsedAmount,
-                metadata: undefined,
-            },
-            {
-                amount: parsedAmount,
-                currency: depositCurrency,
-                reference: referenceId,
-                customer: {
-                    email: normalizedEmail,
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
                 },
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-                body: JSON.stringify({
-                    ...requestPayload,
-                    amount: parsedAmount,
-                }),
-            })
-            responsePayload = await safeParseJson(korapayResponse)
-=======
                 notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
                 redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
             },
         ]
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-            },
-        ]
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
 
         let selectedResult: KorapayInitResult | null = null
-        const attemptErrors: Array<{ index: number; status: number; message: string }> = []
+        const attemptErrors: Array<{ index: number; status: number; message: string; endpoint?: string }> = []
 
         for (let i = 0; i < attempts.length; i++) {
             const result = await initializeKorapayCharge(
@@ -474,15 +215,6 @@ export async function POST(request: Request) {
                 config.korapayApiKeySecret,
                 attempts[i]
             )
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 
             if (result.ok) {
                 selectedResult = result
@@ -493,6 +225,7 @@ export async function POST(request: Request) {
                 index: i + 1,
                 status: result.status,
                 message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
+                endpoint: result.endpoint,
             })
 
             const isInputIssue = looksLikeInputValidationError(result.payload)
@@ -501,409 +234,28 @@ export async function POST(request: Request) {
                 selectedResult = result
                 break
             }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-
-            if (result.ok) {
-                selectedResult = result
-                break
-            }
-
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
-                break
-            }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
         }
 
         if (!selectedResult || !selectedResult.ok) {
             await setDepositStatus(sql, referenceId, 'failed', 'reference_id')
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-            const korapayError =
-                responsePayload.message ||
-                responsePayload.error ||
-                (responsePayload.data && typeof responsePayload.data === 'object'
-                    ? Object.values(responsePayload.data)
-                        .map((v: any) => v?.message)
-                        .filter(Boolean)
-                        .join('; ')
-                    : null) ||
-                `Korapay error ${korapayResponse.status}`
-
-            console.error('[Deposits] Korapay error:', korapayResponse.status, JSON.stringify(responsePayload))
-
-=======
             const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
 
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
             return NextResponse.json(
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-                { error: korapayError },
-                { status: korapayResponse.status || 502 }
-=======
                 {
                     error: finalMessage,
                     details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
                 },
                 { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-                {
-                    error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
-                },
-                { status: selectedResult?.status || 502 }
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
             )
         }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-        const checkoutUrl =
-            responsePayload.data?.checkout_url ||
-            responsePayload.data?.payment_url ||
-            responsePayload.checkout_url
-
-        if (!checkoutUrl) {
-            console.error('[Deposits] No checkout_url in Korapay response:', JSON.stringify(responsePayload))
-            await setDepositStatus(sql, referenceId, 'failed', 'reference_id')
-            return NextResponse.json(
-                { error: 'Payment provider did not return a checkout URL' },
-                { status: 502 }
-            )
-        }
-
-=======
         const responsePayload = selectedResult.payload
 
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
-=======
-        const responsePayload = selectedResult.payload
-
->>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
         return NextResponse.json({
             success: true,
             reference_id: referenceId,
-            checkout_url: checkoutUrl,
+            checkout_url: responsePayload.data?.checkout_url || responsePayload.data?.payment_url || responsePayload.checkout_url,
             amount: parsedAmount,
             currency: depositCurrency,
         })
