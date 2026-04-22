@@ -9,6 +9,12 @@ type CreateDepositRequest = {
     currency?: string
 }
 
+type KorapayInitResult = {
+    ok: boolean
+    status: number
+    payload: any
+}
+
 async function safeParseJson(response: Response): Promise<any> {
     const text = await response.text()
 
@@ -31,6 +37,27 @@ function looksLikeInputValidationError(payload: any): boolean {
         message.includes('validation') ||
         message.includes('invalid request')
     )
+}
+
+async function initializeKorapayCharge(
+    apiBaseUrl: string,
+    apiKey: string,
+    payload: Record<string, any>
+): Promise<KorapayInitResult> {
+    const response = await fetch(`${apiBaseUrl}/charges/initialize`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+    })
+
+    return {
+        ok: response.ok,
+        status: response.status,
+        payload: await safeParseJson(response),
+    }
 }
 
 export async function GET() {
@@ -130,48 +157,74 @@ export async function POST(request: Request) {
             redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
         }
 
-        let korapayResponse = await fetch(
-            `${config.korapayApiBaseUrl}/charges/initialize`,
+        const attempts: Array<Record<string, any>> = [
+            requestPayload,
+            { ...requestPayload, amount: parsedAmount },
             {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${config.korapayApiKeySecret}`,
+                ...requestPayload,
+                metadata: undefined,
+            },
+            {
+                ...requestPayload,
+                amount: parsedAmount,
+                metadata: undefined,
+            },
+            {
+                amount: parsedAmount,
+                currency: depositCurrency,
+                reference: referenceId,
+                customer: {
+                    email: normalizedEmail,
                 },
-                body: JSON.stringify(requestPayload),
-            }
-        )
+                notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
+                redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
+            },
+        ]
 
-        let responsePayload = await safeParseJson(korapayResponse)
+        let selectedResult: KorapayInitResult | null = null
+        const attemptErrors: Array<{ index: number; status: number; message: string }> = []
 
-        // Some Korapay setups expect major units for this endpoint.
-        // Retry once with unscaled amount when validation fails.
-        if (!korapayResponse.ok && looksLikeInputValidationError(responsePayload)) {
-            korapayResponse = await fetch(
-                `${config.korapayApiBaseUrl}/charges/initialize`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${config.korapayApiKeySecret}`,
-                    },
-                    body: JSON.stringify({
-                        ...requestPayload,
-                        amount: parsedAmount,
-                    }),
-                }
+        for (let i = 0; i < attempts.length; i++) {
+            const result = await initializeKorapayCharge(
+                config.korapayApiBaseUrl,
+                config.korapayApiKeySecret,
+                attempts[i]
             )
-            responsePayload = await safeParseJson(korapayResponse)
+
+            if (result.ok) {
+                selectedResult = result
+                break
+            }
+
+            attemptErrors.push({
+                index: i + 1,
+                status: result.status,
+                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
+            })
+
+            const isInputIssue = looksLikeInputValidationError(result.payload)
+            if (!isInputIssue && result.status >= 400 && result.status < 500) {
+                // Stop retrying on clear client/auth errors that are not input-shape issues.
+                selectedResult = result
+                break
+            }
         }
 
-        if (!korapayResponse.ok) {
+        if (!selectedResult || !selectedResult.ok) {
             await setDepositStatus(sql, referenceId, 'failed', 'reference_id')
 
+            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
+
             return NextResponse.json(
-                { error: responsePayload.message || responsePayload.error || 'Failed to initialize top-up payment' },
-                { status: korapayResponse.status || 502 }
+                {
+                    error: finalMessage,
+                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
+                },
+                { status: selectedResult?.status || 502 }
             )
         }
+
+        const responsePayload = selectedResult.payload
 
         return NextResponse.json({
             success: true,
