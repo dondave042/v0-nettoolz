@@ -296,7 +296,47 @@ export async function POST(request: NextRequest) {
     }
 
     switch (eventType) {
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+      // charge.success and checkout.paid are the Korapay Checkout API equivalents
+=======
       // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
+=======
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
+>>>>>>> 73116a5bbc0c991087326ea756f0f914df7ab447
       case 'charge.completed':
       case 'charge.success':
       case 'checkout.paid':
