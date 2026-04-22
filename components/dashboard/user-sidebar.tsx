@@ -15,6 +15,7 @@ import {
 interface UserSidebarProps {
   onClose?: () => void
   open?: boolean
+  userBalance?: number
 }
 
 const userLinks = [
@@ -25,7 +26,7 @@ const userLinks = [
   { href: "/dashboard/support", label: "Support", icon: HelpCircle },
 ]
 
-export function UserSidebar({ onClose, open = true }: UserSidebarProps) {
+export function UserSidebar({ onClose, open = true, userBalance = 0 }: UserSidebarProps) {
   const pathname = usePathname()
 
   if (!open) return null
@@ -45,6 +46,9 @@ export function UserSidebar({ onClose, open = true }: UserSidebarProps) {
           <div>
             <h2 className="font-bold text-white text-sm">NETTOOLZ</h2>
             <p className="text-xs text-[#7dd3fc]">User Dashboard</p>
+            <div className="mt-2 inline-flex items-center rounded-full border border-[#38bdf8]/40 bg-[#0b3d5a] px-2.5 py-1 text-[11px] font-semibold text-[#7dd3fc] md:hidden">
+              Balance: ₦{userBalance.toLocaleString()}
+            </div>
           </div>
           <button
             onClick={onClose}

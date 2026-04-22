@@ -15,12 +15,12 @@ interface Product {
   description: string
   price: string
   available_qty: number
-  badge: string | null
+  badge?: string
   is_featured: boolean
   category_name: string
-  images: string[] | null
-  product_username: string | null
-  product_password: string | null
+  images?: string[]
+  product_username?: string
+  product_password?: string
 }
 
 export function ProductCard({ product }: { product: Product }) {
@@ -31,6 +31,20 @@ export function ProductCard({ product }: { product: Product }) {
   const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null)
   const [loadingCredentials, setLoadingCredentials] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  async function readJsonSafely(response: Response) {
+    const text = await response.text()
+
+    if (!text) {
+      return null
+    }
+
+    try {
+      return JSON.parse(text)
+    } catch {
+      return null
+    }
+  }
 
   async function handleAddToCart() {
     // Check if buyer is logged in
@@ -56,14 +70,18 @@ export function ProductCard({ product }: { product: Product }) {
     setLoadingCredentials(true)
     try {
       const res = await fetch(`/api/products/${product.id}/credentials`)
+      const data = await readJsonSafely(res)
+
       if (res.ok) {
-        const data = await res.json()
+        if (!data) {
+          throw new Error('Credentials response was empty')
+        }
         setCredentials(data)
         setShowCredentials(true)
       } else if (res.status === 403) {
-        toast.error("You need to purchase this product first")
+        toast.error((data as { error?: string } | null)?.error || "You need to purchase this product first")
       } else {
-        toast.error("Failed to load credentials")
+        toast.error((data as { error?: string } | null)?.error || "Failed to load credentials")
       }
     } catch (error) {
       console.error("Error fetching credentials:", error)
@@ -139,7 +157,7 @@ export function ProductCard({ product }: { product: Product }) {
             <ShoppingCart className="h-4 w-4" />
             {inStock ? "Add to Cart" : "Sold Out"}
           </Button>
-          
+
           {/* Credentials Button */}
           {(product.product_username || product.product_password) && (
             <Button

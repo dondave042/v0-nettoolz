@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 
 export async function POST() {
-  const response = NextResponse.json({ success: true })
-  response.cookies.set("admin_token", "", {
+  const cookieStore = await cookies()
+  cookieStore.set("admin_token", "", {
     httpOnly: true,
-    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/",
+    sameSite: "lax",
     maxAge: 0,
+    path: "/",
   })
-  return response
+  return NextResponse.json({ success: true })
 }

@@ -12,8 +12,9 @@ import {
 export interface PaymentConfig {
   korapayApiKeyId: string
   korapayApiKeySecret: string
-  korapayWebhookSecret: string
-  korapayCheckoutUrl: string
+  korapayWebhookSecret?: string
+  korapayApiBaseUrl: string
+  korapayCheckoutUrl?: string
   webhookBaseUrl: string
   environment: 'development' | 'production'
 }
@@ -27,13 +28,23 @@ let configValidationError: Error | null = null
 /**
  * Validate required environment variables for payment processing
  */
+function normalizeBaseUrl(value: string): string {
+  return value.replace(/\/$/, '')
+}
+
+function resolveWebhookBaseUrl(): string | undefined {
+  return (
+    process.env.WEBHOOK_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
+  )
+}
+
 function validateEnvironmentVariables(): Record<string, string | undefined> {
   const requiredVars = {
-    KORAPAY_API_KEY_ID: process.env.KORAPAY_API_KEY_ID,
-    KORAPAY_API_KEY_SECRET: process.env.KORAPAY_API_KEY_SECRET,
-    KORAPAY_WEBHOOK_SECRET: process.env.KORAPAY_WEBHOOK_SECRET,
-    KORAPAY_CHECKOUT_URL: process.env.KORAPAY_CHECKOUT_URL,
-    WEBHOOK_BASE_URL: process.env.WEBHOOK_BASE_URL,
+    KORAPAY_API_KEY_SECRET:
+      process.env.KORAPAY_API_KEY_SECRET || process.env.KORAPAY_SECRET_KEY,
+    WEBHOOK_BASE_URL: resolveWebhookBaseUrl(),
   }
 
   const missing = Object.entries(requiredVars)
@@ -51,6 +62,22 @@ function validateEnvironmentVariables(): Record<string, string | undefined> {
   }
 
   return requiredVars as Record<string, string>
+}
+
+export function getKorapayWebhookSecret(): string {
+  const webhookSecret = process.env.KORAPAY_WEBHOOK_SECRET
+
+  if (!webhookSecret) {
+    const error = createPaymentError(
+      PaymentErrorCode.MISSING_ENV_VARS,
+      'Missing required environment variables: KORAPAY_WEBHOOK_SECRET',
+      { missing: ['KORAPAY_WEBHOOK_SECRET'] }
+    )
+    logPaymentError(error, 'PaymentConfig')
+    throw error
+  }
+
+  return webhookSecret
 }
 
 /**
@@ -72,13 +99,15 @@ export function getPaymentConfig(): PaymentConfig {
     const vars = validateEnvironmentVariables()
 
     cachedConfig = {
-      korapayApiKeyId: vars.KORAPAY_API_KEY_ID,
+      korapayApiKeyId: process.env.KORAPAY_API_KEY_ID || '',
       korapayApiKeySecret: vars.KORAPAY_API_KEY_SECRET,
-      korapayWebhookSecret: vars.KORAPAY_WEBHOOK_SECRET,
-      korapayCheckoutUrl:
-        vars.KORAPAY_CHECKOUT_URL ||
-        'https://checkout.korapay.com/pay/nettoolz',
-      webhookBaseUrl: vars.WEBHOOK_BASE_URL,
+      korapayWebhookSecret: process.env.KORAPAY_WEBHOOK_SECRET,
+      korapayApiBaseUrl: normalizeBaseUrl(
+        process.env.KORAPAY_API_BASE_URL ||
+          'https://api.korapay.com/merchant/api/v1'
+      ),
+      korapayCheckoutUrl: process.env.KORAPAY_CHECKOUT_URL,
+      webhookBaseUrl: normalizeBaseUrl(vars.WEBHOOK_BASE_URL),
       environment: process.env.NODE_ENV as
         | 'development'
         | 'production',

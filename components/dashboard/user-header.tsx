@@ -11,9 +11,10 @@ import { toast } from "sonner"
 interface UserHeaderProps {
   onMenuToggle?: (open: boolean) => void
   userName?: string
+  userBalance?: number
 }
 
-export function UserHeader({ onMenuToggle, userName = "Guest" }: UserHeaderProps) {
+export function UserHeader({ onMenuToggle, userName = "Guest", userBalance = 0 }: UserHeaderProps) {
   const router = useRouter()
   const { totalItems } = useCart()
   const [cartOpen, setCartOpen] = useState(false)
@@ -86,8 +87,14 @@ export function UserHeader({ onMenuToggle, userName = "Guest" }: UserHeaderProps
               <div className="hidden sm:flex items-center gap-3 border-l border-border pl-3">
                 <div className="text-right text-sm">
                   <p className="font-medium text-foreground">{userName}</p>
-                  <p className="text-xs text-muted-foreground">User</p>
+                  <p className="text-xs text-muted-foreground">Balance: ₦{userBalance.toLocaleString()}</p>
                 </div>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="px-3 py-1.5 text-xs font-medium text-[#0284c7] hover:text-[#0ea5e9] transition-colors"
+                >
+                  Dashboard
+                </button>
                 <button
                   onClick={handleLogout}
                   className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-red-600 transition-colors"

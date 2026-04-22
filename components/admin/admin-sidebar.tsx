@@ -5,14 +5,17 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
+  Package,
+  Megaphone,
   LogOut,
   Home,
   CreditCard,
+  ReceiptText,
   BarChart3,
   Menu,
   X,
+  KeyRound,
   Settings,
-  Package,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,8 +23,11 @@ const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
+  { href: "/admin/credentials-inventory", label: "Credentials", icon: KeyRound },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/balance-adjustments", label: "Balance Adjustments", icon: ReceiptText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
 ]
 
 export function AdminSidebar() {
@@ -56,10 +62,11 @@ export function AdminSidebar() {
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive
-                ? "bg-[#38bdf8] text-[#0c4a6e]"
-                : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
-                }`}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-[#38bdf8] text-[#0c4a6e]"
+                  : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
+              }`}
             >
               <Icon className="h-5 w-5" />
               {label}

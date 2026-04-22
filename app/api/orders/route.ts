@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBuyerSession } from '@/lib/buyer-auth'
-import { getDb } from '@/lib/db'
+import { ensureOrderCredentialsTable } from '@/lib/credentials-inventory'
 
 /**
  * GET /api/orders
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const sql = getDb()
+    const sql = await ensureOrderCredentialsTable()
 
     // Fetch orders with product and payment method details
     const orders = await sql`

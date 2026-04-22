@@ -3,14 +3,14 @@ import { isAuthenticated } from "@/lib/auth"
 import { AdminDashboardShell } from "@/components/admin/admin-dashboard-shell"
 
 export default async function AdminDashboardLayout({
-    children,
+  children,
 }: {
-    children: React.ReactNode
+  children: React.ReactNode
 }) {
-    const authenticated = await isAuthenticated()
-    if (!authenticated) {
-        redirect("/admin/login")
-    }
+  const authenticated = await isAuthenticated()
+  if (!authenticated) {
+    redirect("/admin/login")
+  }
 
-    return <AdminDashboardShell>{children}</AdminDashboardShell>
+  return <AdminDashboardShell>{children}</AdminDashboardShell>
 }

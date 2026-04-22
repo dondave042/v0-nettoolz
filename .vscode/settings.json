@@ -1,13 +1,5 @@
 {
   "css.lint.unknownAtRules": "ignore",
   "css.validate": false,
-  "scss.validate": false,
-  "editor.formatOnSave": true,
-  "accessibility.signalOptions.debouncePositionChanges": false,
-  "chat.checkpoints.showFileChanges": true,
-  "chat.agent.sandbox.enabled": "on",
-  "editor.codeLens": false,
-  "editor.codeActionWidget.includeNearbyQuickFixes": true,
-  "editor.definitionLinkOpensInPeek": true,
-  "editor.inertialScroll": false
+  "scss.validate": false
 }

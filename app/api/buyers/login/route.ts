@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       id: buyer.id,
       email: buyer.email,
       name: buyer.name,
+      balance: parseFloat(buyer.balance ?? 0),
     })
 
     // Create response with cookie

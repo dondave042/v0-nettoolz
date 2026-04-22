@@ -1,5 +1,23 @@
 import Link from "next/link"
-import { Shield, Mail, MessageCircle } from "lucide-react"
+import { Shield } from "lucide-react"
+
+const aboutLinks = [
+  { label: "About Us", href: "/about" },
+  { label: "Blog", href: "/blog" },
+  { label: "Careers", href: "/careers" },
+]
+
+const legalLinks = [
+  { label: "Terms & Conditions", href: "/terms" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Cookie Policy", href: "/cookies" },
+]
+
+const supportLinks = [
+  { label: "Help Center", href: "/support" },
+  { label: "Contact Us", href: "/support#contact" },
+  { label: "FAQ", href: "/support#faq" },
+]
 
 export function SiteFooter() {
   return (
@@ -9,29 +27,38 @@ export function SiteFooter() {
           {/* Brand Column */}
           <div className="flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-3">
-              <img
-                src="/images/logo.png"
-                alt="NETTOOLZ Logo"
-                className="h-9 w-9 rounded-full"
-              />
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#38bdf8] to-[#0284c7] shadow-md">
+                <span className="font-bold text-white text-sm">NT</span>
+              </div>
               <span className="text-lg font-bold text-white">NETTOOLZ</span>
             </Link>
             <p className="text-sm leading-relaxed text-[#7dd3fc]">
-              Your ultimate destination for premium digital accounts. Trusted by thousands of customers worldwide.
+              Your ultimate destination for premium digital accounts, tools, and licenses. Trusted by thousands of customers worldwide.
             </p>
           </div>
 
-          {/* Quick Links */}
+          {/* About */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Quick Links</h3>
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">About</h3>
             <ul className="flex flex-col gap-2">
-              {["Home", "Products", "Categories", "Testimonials"].map((item) => (
-                <li key={item}>
-                  <Link
-                    href={`/#${item.toLowerCase()}`}
-                    className="text-sm text-[#7dd3fc] transition-colors hover:text-white"
-                  >
-                    {item}
+              {aboutLinks.map((link) => (
+                <li key={link.label}>
+                  <Link href={link.href} className="text-sm text-[#7dd3fc] transition-colors hover:text-white">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Legal</h3>
+            <ul className="flex flex-col gap-2">
+              {legalLinks.map((link) => (
+                <li key={link.label}>
+                  <Link href={link.href} className="text-sm text-[#7dd3fc] transition-colors hover:text-white">
+                    {link.label}
                   </Link>
                 </li>
               ))}
@@ -41,33 +68,11 @@ export function SiteFooter() {
           {/* Support */}
           <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Support</h3>
-            <ul className="flex flex-col gap-3">
-              <li className="flex items-center gap-2 text-sm text-[#7dd3fc]">
-                <Mail className="h-4 w-4" />
-                <span>support@nettoolz.com</span>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-[#7dd3fc]">
-                <MessageCircle className="h-4 w-4" />
-                <span>Live Chat Available</span>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-[#7dd3fc]">
-                <Shield className="h-4 w-4" />
-                <span>Secure Transactions</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Legal</h3>
             <ul className="flex flex-col gap-2">
-              {["Terms of Service", "Privacy Policy", "Refund Policy"].map((item) => (
-                <li key={item}>
-                  <Link
-                    href="#"
-                    className="text-sm text-[#7dd3fc] transition-colors hover:text-white"
-                  >
-                    {item}
+              {supportLinks.map((link) => (
+                <li key={link.label}>
+                  <Link href={link.href} className="text-sm text-[#7dd3fc] transition-colors hover:text-white">
+                    {link.label}
                   </Link>
                 </li>
               ))}
@@ -78,15 +83,23 @@ export function SiteFooter() {
         {/* Bottom bar */}
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-[#075985] pt-8 sm:flex-row">
           <p className="text-sm text-[#7dd3fc]">
-            &copy; {new Date().getFullYear()} NETTOOLZ. All rights reserved.
+            &copy; 2026 NETTOOLZ. All rights reserved.
           </p>
-          <Link
-            href="/admin/login"
-            className="flex items-center gap-2 rounded-lg border border-[#075985] px-4 py-2 text-sm font-medium text-[#7dd3fc] transition-colors hover:border-[#38bdf8] hover:text-white"
-          >
-            <Shield className="h-4 w-4" />
-            Admin
-          </Link>
+          <div className="flex items-center gap-4 text-sm text-[#7dd3fc]">
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <span>&middot;</span>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <span>&middot;</span>
+            <Link href="/security" className="hover:text-white transition-colors">Security</Link>
+            <span>&middot;</span>
+            <Link
+              href="/admin/login"
+              className="flex items-center gap-1 hover:text-white transition-colors"
+            >
+              <Shield className="h-3.5 w-3.5" />
+              Admin
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

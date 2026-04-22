@@ -62,7 +62,6 @@ export async function setBuyerWelcomeBonus(value: number) {
   const [existing] = await sql`
     SELECT value FROM app_settings WHERE key = ${BONUS_SETTING_KEY} LIMIT 1
   `
-  const previousValue = existing?.value ?? null
 
   await sql`
     INSERT INTO app_settings (key, value, updated_at)

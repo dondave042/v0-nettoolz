@@ -17,10 +17,19 @@ interface PaymentMethod {
   config: Record<string, unknown> | null
 }
 
+interface CheckoutOrder {
+  id: number
+}
+
 interface BuyerSession {
   id: number
   email: string
   name: string
+}
+
+function isBalanceMethod(type: string | null | undefined) {
+  const normalized = String(type || '').trim().toLowerCase()
+  return normalized === 'dashboard' || normalized === 'balance' || normalized === 'wallet'
 }
 
 function CheckoutContent() {
@@ -34,6 +43,7 @@ function CheckoutContent() {
 
   const [form, setForm] = useState({
     payment_method_id: "",
+    payment_method_type: "",
   })
 
   useEffect(() => {
@@ -88,6 +98,7 @@ function CheckoutContent() {
           setForm((prev) => ({
             ...prev,
             payment_method_id: data.methods[0].id.toString(),
+            payment_method_type: data.methods[0].type,
           }))
         }
       } else {
@@ -116,13 +127,15 @@ function CheckoutContent() {
     try {
       // Step 1: Create order
       const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-      
+
       const checkoutRes = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          product_id: items[0]?.productId,
-          quantity: items.reduce((sum, item) => sum + item.quantity, 0),
+          items: items.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+          })),
           payment_method_id: parseInt(form.payment_method_id),
         }),
       })
@@ -134,14 +147,25 @@ function CheckoutContent() {
       }
 
       const orderData = await checkoutRes.json()
-      const orderId = orderData.order.id
+
+      if (orderData.completed) {
+        clearCart()
+        setCompleted(true)
+        toast.success('Order completed successfully')
+        setTimeout(() => router.push('/my-purchases'), 1200)
+        return
+      }
+
+      const orderIds = Array.isArray(orderData.orders)
+        ? orderData.orders.map((order: CheckoutOrder) => order.id)
+        : [orderData.order.id]
 
       // Step 2: Initialize payment with Korapay
       const paymentRes = await fetch('/api/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: orderId,
+          orderIds,
           amount: totalPrice,
           currency: 'NGN',
           email: buyer.email,
@@ -183,6 +207,8 @@ function CheckoutContent() {
   }
 
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const selectedMethod = paymentMethods.find((method) => method.id.toString() === form.payment_method_id)
+  const shouldPayFromBalance = isBalanceMethod(selectedMethod?.type || form.payment_method_type)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary px-4 py-8">
@@ -243,8 +269,8 @@ function CheckoutContent() {
                 <h2 className="text-lg font-semibold text-foreground">Payment Method</h2>
                 <PaymentMethodSelector
                   selectedMethodId={form.payment_method_id ? parseInt(form.payment_method_id) : undefined}
-                  onSelect={(methodId) =>
-                    setForm({ ...form, payment_method_id: methodId.toString() })
+                  onSelect={(methodId, methodType) =>
+                    setForm({ ...form, payment_method_id: methodId.toString(), payment_method_type: methodType })
                   }
                 />
               </div>
@@ -276,9 +302,14 @@ function CheckoutContent() {
                       Processing...
                     </>
                   ) : (
-                    'Place Order'
+                    shouldPayFromBalance ? 'Pay With Balance' : 'Place Order'
                   )}
                 </Button>
+                {shouldPayFromBalance && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    This order will complete instantly using your account balance.
+                  </p>
+                )}
                 <Link href="/products" className="block">
                   <Button variant="outline" className="w-full">
                     Continue Shopping

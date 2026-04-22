@@ -1,34 +1,23 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   ShoppingCart,
-  TrendingUp,
   AlertCircle,
   Wallet,
-  Gift,
-  Zap,
   ArrowRight,
   CreditCard,
   CheckCircle2,
   Clock,
+  PlusCircle,
+  Gift,
   Package,
-  Plus,
-  Loader2,
+  TrendingUp,
+  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { UserHeader } from "@/components/dashboard/user-header"
 import { UserSidebar } from "@/components/dashboard/user-sidebar"
 import { Card } from "@/components/dashboard/card"
@@ -63,8 +52,25 @@ interface Deposit {
   occurred_at: string
 }
 
-export default function DashboardPage() {
+interface DashboardSummaryResponse {
+  buyer: {
+    id: number
+    name: string
+    balance: number
+  }
+  stats: UserStats
+  events: {
+    lastPurchaseSuccessAt: string | null
+    lastDepositSuccessAt: string | null
+  }
+  recentOrders: Order[]
+  recentActivity: Deposit[]
+  serverTime: string
+}
+
+function DashboardPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userName, setUserName] = useState("User")
   const [stats, setStats] = useState<UserStats>({
@@ -75,49 +81,48 @@ export default function DashboardPage() {
   })
   const [recentOrders, setRecentOrders] = useState<Order[]>([])
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([])
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-
-  // Fund Account state
-  const [fundDialogOpen, setFundDialogOpen] = useState(false)
-  const [fundAmount, setFundAmount] = useState("")
-  const [fundLoading, setFundLoading] = useState(false)
+  const [topUpAmount, setTopUpAmount] = useState('1000')
+  const [topUpLoading, setTopUpLoading] = useState(false)
+  const lastPaymentEventRef = useRef<{ purchase: string | null; deposit: string | null } | null>(null)
+  const fastSyncUntilRef = useRef(0)
 
   const fetchDashboardData = useCallback(async (silent = false) => {
     try {
-      // Check authentication first
-      const meRes = await fetch("/api/buyers/me")
-      if (!meRes.ok) {
+      const summaryRes = await fetch('/api/dashboard/summary', { cache: 'no-store' })
+
+      if (!summaryRes.ok) {
         router.push("/login")
         return
       }
-      const meData = await meRes.json()
-      setUserName(meData.buyer?.name || "User")
 
-      // Fetch stats, orders, and balance activity in parallel
-      const [statsRes, ordersRes, depositsRes] = await Promise.all([
-        fetch("/api/buyers/stats"),
-        fetch("/api/orders"),
-        fetch("/api/transactions"),
-      ])
+      const summaryData = await summaryRes.json() as DashboardSummaryResponse
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json()
-        setStats({
-          balance: parseFloat(meData.buyer?.balance ?? 0),
-          totalOrders: statsData.totalOrders ?? 0,
-          pendingOrders: statsData.pendingOrders ?? 0,
-          totalSpent: statsData.totalSpent ?? 0,
-        })
+      setUserName(summaryData.buyer?.name || 'User')
+      setStats(summaryData.stats || {
+        balance: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        totalSpent: 0,
+      })
+      setRecentOrders(summaryData.recentOrders || [])
+      setRecentDeposits(summaryData.recentActivity || [])
+      setLastSyncedAt(summaryData.serverTime || new Date().toISOString())
+
+      const nextEvents = {
+        purchase: summaryData.events?.lastPurchaseSuccessAt ?? null,
+        deposit: summaryData.events?.lastDepositSuccessAt ?? null,
       }
+      const previousEvents = lastPaymentEventRef.current
+      lastPaymentEventRef.current = nextEvents
 
-      if (ordersRes.ok) {
-        const ordersData = await ordersRes.json()
-        setRecentOrders((ordersData.orders || []).slice(0, 5))
-      }
-
-      if (depositsRes.ok) {
-        const depositsData = await depositsRes.json()
-        setRecentDeposits((depositsData.transactions || []).slice(0, 5))
+      if (
+        silent &&
+        previousEvents &&
+        (previousEvents.purchase !== nextEvents.purchase || previousEvents.deposit !== nextEvents.deposit)
+      ) {
+        toast.success("Payment update received")
       }
     } catch (error) {
       console.error("[Dashboard] Failed to fetch data:", error)
@@ -127,42 +132,6 @@ export default function DashboardPage() {
     }
   }, [router])
 
-  const handleFundAccount = async () => {
-    const amount = parseFloat(fundAmount)
-    if (!amount || amount <= 0) {
-      toast.error("Please enter a valid amount")
-      return
-    }
-
-    setFundLoading(true)
-    try {
-      const res = await fetch("/api/deposits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        toast.error(data.error || "Failed to initiate deposit")
-        return
-      }
-
-      if (data.checkout_url) {
-        toast.success("Redirecting to payment...")
-        window.location.href = data.checkout_url
-      } else {
-        toast.error("Payment checkout URL not available")
-      }
-    } catch (error) {
-      console.error("[Dashboard] Fund account error:", error)
-      toast.error("Failed to process deposit")
-    } finally {
-      setFundLoading(false)
-    }
-  }
-
   const paymentStatusConfig = {
     completed: { icon: CheckCircle2, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/30", label: "Paid" },
     failed: { icon: AlertCircle, color: "text-red-600", bg: "bg-red-100 dark:bg-red-900/30", label: "Failed" },
@@ -171,13 +140,27 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    const cameFromPayment = searchParams.get('refresh') === 'payment'
+    if (cameFromPayment) {
+      // Poll aggressively for one minute after returning from payment provider.
+      fastSyncUntilRef.current = Date.now() + 60_000
+      router.replace('/dashboard')
+    }
+
     fetchDashboardData()
 
-    // Poll every 5 seconds for webhook-driven updates (Korapay payment completion)
-    // This catches real-time balance/order status changes from payment webhooks
-    const interval = setInterval(() => {
-      if (!document.hidden) fetchDashboardData(true)
-    }, 5_000)
+    // Poll frequently after payment redirect, then fall back to normal cadence.
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const scheduleNextPoll = () => {
+      const intervalMs = Date.now() < fastSyncUntilRef.current ? 1_500 : 5_000
+      timeoutId = setTimeout(async () => {
+        if (!document.hidden) {
+          await fetchDashboardData(true)
+        }
+        scheduleNextPoll()
+      }, intervalMs)
+    }
+    scheduleNextPoll()
 
     // Re-fetch immediately when user returns to this tab (e.g., after Korapay redirect)
     const handleVisibility = () => {
@@ -186,10 +169,45 @@ export default function DashboardPage() {
     document.addEventListener("visibilitychange", handleVisibility)
 
     return () => {
-      clearInterval(interval)
+      if (timeoutId) clearTimeout(timeoutId)
       document.removeEventListener("visibilitychange", handleVisibility)
     }
-  }, [fetchDashboardData])
+  }, [fetchDashboardData, router, searchParams])
+
+  async function handleTopUp() {
+    const parsedAmount = Number(topUpAmount)
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 100) {
+      toast.error('Enter a top-up amount of at least 100')
+      return
+    }
+
+    setTopUpLoading(true)
+    try {
+      const response = await fetch('/api/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: parsedAmount, currency: 'NGN' }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to initialize top-up')
+      }
+
+      if (!payload.checkout_url) {
+        throw new Error('Top-up checkout URL was not returned')
+      }
+
+      window.location.href = payload.checkout_url
+    } catch (error) {
+      console.error('[Dashboard] Top-up error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to initialize top-up')
+    } finally {
+      setTopUpLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -204,10 +222,14 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <UserHeader onMenuToggle={setSidebarOpen} userName={userName} />
+      <UserHeader onMenuToggle={setSidebarOpen} userName={userName} userBalance={stats.balance} />
 
       <div className="flex flex-1">
-        <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <UserSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          userBalance={stats.balance}
+        />
 
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
@@ -219,12 +241,15 @@ export default function DashboardPage() {
               <p className="text-muted-foreground">
                 Manage your purchases and explore new products
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Live sync enabled. Last update: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString() : 'just now'}
+              </p>
             </div>
 
             {/* Balance Card */}
             <div className="mb-8">
               <Card>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Account Balance</p>
                     <p className="mt-2 text-4xl font-bold text-[#38bdf8]">
@@ -232,64 +257,27 @@ export default function DashboardPage() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Available for purchases</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Dialog open={fundDialogOpen} onOpenChange={setFundDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="bg-green-600 text-white hover:bg-green-700">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Fund Account
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Fund Your Account</DialogTitle>
-                          <DialogDescription>
-                            Enter the amount you want to deposit into your account balance.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <label className="text-sm font-medium text-foreground mb-2 block">
-                            Amount (₦)
-                          </label>
-                          <Input
-                            type="number"
-                            min="100"
-                            max="1000000"
-                            step="100"
-                            placeholder="e.g. 5000"
-                            value={fundAmount}
-                            onChange={(e) => setFundAmount(e.target.value)}
-                            disabled={fundLoading}
-                          />
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Minimum: ₦100 · Maximum: ₦1,000,000
-                          </p>
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => setFundDialogOpen(false)}
-                            disabled={fundLoading}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            className="bg-green-600 text-white hover:bg-green-700"
-                            onClick={handleFundAccount}
-                            disabled={fundLoading || !fundAmount}
-                          >
-                            {fundLoading ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              <>Proceed to Payment</>
-                            )}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="100"
+                        step="100"
+                        value={topUpAmount}
+                        onChange={(event) => setTopUpAmount(event.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none sm:w-36"
+                        placeholder="Top-up amount"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleTopUp}
+                        disabled={topUpLoading}
+                        className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+                      >
+                        <PlusCircle className="h-4 w-4" />
+                        {topUpLoading ? 'Loading...' : 'Top Up Balance'}
+                      </Button>
+                    </div>
                     <div className="h-16 w-16 rounded-xl bg-[#38bdf8]/10 flex items-center justify-center">
                       <Wallet className="h-8 w-8 text-[#38bdf8]" />
                     </div>
@@ -363,7 +351,7 @@ export default function DashboardPage() {
                 header={
                   <div className="flex items-center justify-between">
                     <h2 className="font-bold text-foreground">Recent Purchase History</h2>
-                    <Link href="/my-purchases" className="text-sm text-[#38bdf8] hover:text-[#0ea5e9]">
+                    <Link href="/orders" className="text-sm text-[#38bdf8] hover:text-[#0ea5e9]">
                       View all →
                     </Link>
                   </div>
@@ -373,7 +361,7 @@ export default function DashboardPage() {
                   <div className="text-center py-8">
                     <Package className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
                     <p className="text-muted-foreground text-sm">No purchases yet</p>
-                    <Link href="/#products">
+                    <Link href="/shop">
                       <Button size="sm" className="mt-4 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]">
                         Browse Products
                       </Button>
@@ -460,7 +448,7 @@ export default function DashboardPage() {
             <div className="mb-8">
               <h2 className="text-xl font-bold text-foreground mb-4">Quick Actions</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link href="/#products">
+                <Link href="/shop">
                   <Card hoverable className="group cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div>
@@ -476,7 +464,7 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
 
-                <Link href="/my-purchases">
+                <Link href="/orders">
                   <Card hoverable className="group cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div>
@@ -492,7 +480,7 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
 
-                <a href="https://checkout.korapay.com/pay/nettoolz" target="_blank" rel="noopener noreferrer">
+                <Link href="/quick-pay">
                   <Card hoverable className="group cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div>
@@ -506,9 +494,9 @@ export default function DashboardPage() {
                       <CreditCard className="h-5 w-5 text-muted-foreground group-hover:text-green-600 transition-colors" />
                     </div>
                   </Card>
-                </a>
+                </Link>
 
-                <Link href="/dashboard/support">
+                <Link href="/support">
                   <Card hoverable className="group cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div>
@@ -534,7 +522,7 @@ export default function DashboardPage() {
                   Check out our latest premium accounts
                 </p>
                 <Button
-                  onClick={() => router.push("/#products")}
+                  onClick={() => router.push("/shop")}
                   className="bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
                 >
                   Browse Products
@@ -544,8 +532,25 @@ export default function DashboardPage() {
           </div>
 
           <DashboardFooter />
-        </main>
-      </div>
-    </div>
+        </main >
+      </div >
+    </div >
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="h-12 w-12 rounded-full bg-[#38bdf8]/20 animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   )
 }

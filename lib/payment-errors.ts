@@ -201,6 +201,7 @@ export class PaymentConfigError extends PaymentError {
       metadata
     )
     this.name = 'PaymentConfigError'
+    Object.setPrototypeOf(this, PaymentConfigError.prototype)
   }
 }
 
@@ -215,6 +216,7 @@ export class CheckoutError extends PaymentError {
       metadata
     )
     this.name = 'CheckoutError'
+    Object.setPrototypeOf(this, CheckoutError.prototype)
   }
 }
 
@@ -229,6 +231,7 @@ export class ValidationError extends PaymentError {
       metadata
     )
     this.name = 'ValidationError'
+    Object.setPrototypeOf(this, ValidationError.prototype)
   }
 }
 
@@ -243,6 +246,7 @@ export class PaymentWebhookError extends PaymentError {
       metadata
     )
     this.name = 'PaymentWebhookError'
+    Object.setPrototypeOf(this, PaymentWebhookError.prototype)
   }
 }
 
@@ -257,6 +261,7 @@ export class DuplicateWebhookError extends PaymentError {
       metadata
     )
     this.name = 'DuplicateWebhookError'
+    Object.setPrototypeOf(this, DuplicateWebhookError.prototype)
   }
 }
 
@@ -271,6 +276,7 @@ export class InvalidSignatureError extends PaymentError {
       metadata
     )
     this.name = 'InvalidSignatureError'
+    Object.setPrototypeOf(this, InvalidSignatureError.prototype)
   }
 }
 
@@ -285,6 +291,7 @@ export class WebhookProcessingError extends PaymentError {
       metadata
     )
     this.name = 'WebhookProcessingError'
+    Object.setPrototypeOf(this, WebhookProcessingError.prototype)
   }
 }
 
@@ -299,5 +306,6 @@ export class PaymentAPIError extends PaymentError {
       metadata
     )
     this.name = 'PaymentAPIError'
+    Object.setPrototypeOf(this, PaymentAPIError.prototype)
   }
 }

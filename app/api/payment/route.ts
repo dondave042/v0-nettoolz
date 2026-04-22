@@ -9,10 +9,38 @@ import {
 } from '@/lib/payment-errors'
 
 interface InitializePaymentRequest {
-  orderId: string
+  orderId?: string
+  orderIds?: Array<string | number>
   amount: number
   currency: string
   email: string
+}
+
+function normalizeOrderIds(input: InitializePaymentRequest): number[] {
+  const rawIds = Array.isArray(input.orderIds) && input.orderIds.length > 0
+    ? input.orderIds
+    : input.orderId
+      ? [input.orderId]
+      : []
+
+  const parsedIds = rawIds
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0)
+
+  return Array.from(new Set(parsedIds))
+}
+
+async function safeParseJson(response: Response): Promise<any> {
+  const text = await response.text()
+  if (!text) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { message: text }
+  }
 }
 
 /**
@@ -38,17 +66,19 @@ export async function POST(request: Request) {
       )
     }
 
-    const body = await request.json()
-    const { orderId, amount, currency, email } = body as InitializePaymentRequest
+    const body = await request.json() as InitializePaymentRequest
+    const { amount, currency, email } = body
+    const normalizedOrderIds = normalizeOrderIds(body)
+    const normalizedAmount = Number(amount)
 
     // Validate required fields
-    if (!orderId || !amount || !currency || !email) {
+    if (normalizedOrderIds.length === 0 || !normalizedAmount || !currency || !email) {
       throw new ValidationError(
-        'Missing required fields: orderId, amount, currency, email'
+        'Missing required fields: orderId/orderIds, amount, currency, email'
       )
     }
 
-    if (amount <= 0) {
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
       throw new ValidationError('Amount must be greater than 0')
     }
 
@@ -58,31 +88,31 @@ export async function POST(request: Request) {
     const orders = await sql`
       SELECT id, buyer_id, payment_status, payment_reference_id 
       FROM orders 
-      WHERE id = ${orderId} AND buyer_id = ${buyer.id}
+      WHERE id = ANY(${normalizedOrderIds}) AND buyer_id = ${buyer.id}
     `
 
-    if (orders.length === 0) {
+    if (orders.length !== normalizedOrderIds.length) {
       throw new ValidationError('Order not found or does not belong to this buyer')
     }
 
-    const order = orders[0]
-
     // Prevent re-processing completed or failed payments
-    if (
-      order.payment_status === 'completed' ||
-      order.payment_status === 'failed'
-    ) {
-      throw new ValidationError(
-        `Cannot initialize payment for order with status: ${order.payment_status}`
-      )
+    for (const order of orders) {
+      if (
+        order.payment_status === 'completed' ||
+        order.payment_status === 'failed'
+      ) {
+        throw new ValidationError(
+          `Cannot initialize payment for order with status: ${order.payment_status}`
+        )
+      }
     }
 
     // Initialize Korapay payment
-    const korapayReference = order.payment_reference_id || `ORD-${orderId}-${Date.now()}`
+    const korapayReference = orders.find((order) => order.payment_reference_id)?.payment_reference_id || `ORD-${normalizedOrderIds.join('-')}-${Date.now()}`
 
     try {
       const korapayResponse = await fetch(
-        `${config.korapayCheckoutUrl}/charges/initialize`,
+        `${config.korapayApiBaseUrl}/charges/initialize`,
         {
           method: 'POST',
           headers: {
@@ -90,7 +120,7 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${config.korapayApiKeySecret}`,
           },
           body: JSON.stringify({
-            amount: Math.round(amount * 100), // Convert to cents
+            amount: Math.round(normalizedAmount * 100), // Convert to cents
             currency: currency.toUpperCase(),
             reference: korapayReference,
             customer: {
@@ -98,16 +128,18 @@ export async function POST(request: Request) {
               name: buyer.name || 'Customer',
             },
             metadata: {
-              order_id: orderId,
+              order_ids: normalizedOrderIds,
               buyer_id: buyer.id,
+              payment_kind: 'order',
             },
-            notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/korapay`,
+            notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
+            redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
           }),
         }
       )
 
       if (!korapayResponse.ok) {
-        const errorData = await korapayResponse.json()
+        const errorData = await safeParseJson(korapayResponse)
         console.error('[Payment] Korapay API error:', errorData)
         throw new PaymentAPIError(
           `Korapay error: ${errorData.message || 'Unknown error'}`,
@@ -115,22 +147,21 @@ export async function POST(request: Request) {
         )
       }
 
-      const korapayData = await korapayResponse.json()
+      const korapayData = await safeParseJson(korapayResponse)
 
       // Update order with payment reference if not already set
-      if (!order.payment_reference_id) {
-        await sql`
-          UPDATE orders 
-          SET payment_reference_id = ${korapayReference}
-          WHERE id = ${orderId}
-        `
-      }
+      await sql`
+        UPDATE orders 
+        SET payment_reference_id = ${korapayReference}
+        WHERE id = ANY(${normalizedOrderIds})
+      `
 
       return NextResponse.json({
         success: true,
         checkout_url: korapayData.data?.checkout_url || korapayData.checkout_url,
         reference: korapayReference,
-        order_id: orderId,
+        order_id: normalizedOrderIds[0],
+        order_ids: normalizedOrderIds,
       })
     } catch (error) {
       if (error instanceof PaymentAPIError) {
@@ -187,9 +218,10 @@ export async function GET(request: Request) {
 
   try {
     const url = new URL(request.url)
-    const orderId = url.searchParams.get('order_id')
+    const orderIdParam = url.searchParams.get('order_id')
+    const orderId = Number(orderIdParam)
 
-    if (!orderId) {
+    if (!Number.isInteger(orderId) || orderId <= 0) {
       throw new ValidationError('Missing order_id parameter')
     }
 

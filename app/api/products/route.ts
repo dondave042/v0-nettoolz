@@ -3,43 +3,25 @@ import { getDb } from '@/lib/db'
 
 /**
  * GET /api/products
- * Fetches all available products with inventory count
- * Includes pricing, availability, and basic product info
+ * Fetches all available products for the public storefront
  */
 export async function GET(request: NextRequest) {
   try {
     const sql = getDb()
 
-    // Get all active products with inventory
     const products = await sql`
-      SELECT
-        p.id,
-        p.name,
-        p.description,
-        p.price,
-        p.available_qty,
-        COUNT(CASE WHEN bci.assigned_to_buyer_id IS NULL THEN 1 END) as available_credentials,
-        p.created_at
+      SELECT p.id, p.sku, p.name, p.description, p.price, p.available_qty,
+             p.badge, p.is_featured, p.images,
+             CASE WHEN p.product_username IS NOT NULL OR p.product_password IS NOT NULL THEN true ELSE false END as has_credentials,
+             COALESCE(c.name, 'Uncategorized') as category_name,
+             p.created_at
       FROM products p
-      LEFT JOIN buyer_credentials_inventory bci ON p.id = bci.product_id
+      LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.available_qty > 0
-      GROUP BY p.id
-      ORDER BY p.created_at DESC
+      ORDER BY p.is_featured DESC, p.created_at DESC
     `
 
-    return NextResponse.json({
-      products: products.map(product => ({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: parseFloat(product.price),
-        available_qty: product.available_qty,
-        available_credentials: Number(product.available_credentials),
-        in_stock: product.available_qty > 0,
-        created_at: product.created_at,
-      })),
-      total: products.length,
-    }, { status: 200 })
+    return NextResponse.json(products, { status: 200 })
   } catch (error) {
     console.error('[Products] Error fetching products:', error)
     return NextResponse.json(

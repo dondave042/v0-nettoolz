@@ -13,31 +13,33 @@ interface Product {
   description: string
   price: string
   available_qty: number
-  badge: string | null
+  badge?: string
   is_featured: boolean
   category_name: string
-  images: string[] | null
-  product_username: string | null
-  product_password: string | null
+  images?: string[]
+  product_username?: string
+  product_password?: string
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
-    fetchCategories()
   }, [])
+
+  // Derive categories from loaded products
+  const categories = [...new Set(products.map((p) => p.category_name).filter(Boolean))]
 
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/admin/products")
+      const res = await fetch("/api/products")
       if (res.ok) {
         const data = await res.json()
-        const available = (data.products || []).filter((p: Product) => p.available_qty > 0)
+        const list = Array.isArray(data) ? data : (data.products || [])
+        const available = list.filter((p: Product) => p.available_qty > 0)
         setProducts(available)
       }
     } catch (error) {
@@ -45,18 +47,6 @@ export default function ProductsPage() {
       toast.error("Failed to load products")
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function fetchCategories() {
-    try {
-      const res = await fetch("/api/admin/categories")
-      if (res.ok) {
-        const data = await res.json()
-        setCategories(data.categories || [])
-      }
-    } catch (error) {
-      console.error("Fetch categories error:", error)
     }
   }
 
@@ -117,17 +107,17 @@ export default function ProductsPage() {
               >
                 All
               </button>
-              {categories.map((c) => (
+              {categories.map((name) => (
                 <button
-                  key={c.id}
-                  onClick={() => setSelectedCategory(c.name)}
+                  key={name}
+                  onClick={() => setSelectedCategory(name)}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                    selectedCategory === c.name
+                    selectedCategory === name
                       ? "bg-[#38bdf8] text-white"
                       : "bg-background text-foreground hover:bg-muted"
                   }`}
                 >
-                  {c.name}
+                  {name}
                 </button>
               ))}
             </div>

@@ -16,6 +16,13 @@ export async function GET(request: NextRequest) {
     const status = url.searchParams.get('status')
     const dateFrom = url.searchParams.get('date_from')
     const dateTo = url.searchParams.get('date_to')
+    const pageParam = Number(url.searchParams.get('page') || '1')
+    const pageSizeParam = Number(url.searchParams.get('page_size') || '20')
+    const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1
+    const pageSize = Number.isFinite(pageSizeParam)
+      ? Math.min(100, Math.max(1, Math.floor(pageSizeParam)))
+      : 20
+    const offset = (page - 1) * pageSize
     const sql = getDb()
     await ensureBalanceAdjustmentsTable()
     const params: Array<string | number> = [buyer.id]
@@ -42,8 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : ''
-    const query = `
-      SELECT *
+    const unionQuery = `
       FROM (
         SELECT
           CONCAT('deposit-', d.id) AS id,
@@ -95,20 +101,27 @@ export async function GET(request: NextRequest) {
           p.name AS product_name,
           COALESCE(o.payment_completed_at, o.created_at) AS occurred_at
         FROM orders o
-        LEFT JOIN payment_methods pm ON o.payment_method_id = pm.id
         LEFT JOIN products p ON o.product_id = p.id
         WHERE o.buyer_id = $1
           AND o.payment_status = 'completed'
-          AND COALESCE(pm.type, '') = 'balance'
       ) AS transactions
       ${whereClause}
-      ORDER BY occurred_at DESC
-      LIMIT 100
     `
-    const transactions = await sql(query, params)
+    const countQuery = `SELECT COUNT(*)::INT AS total ${unionQuery}`
+    const countRows = await sql.query(countQuery, params)
+    const totalCount = Number(countRows[0]?.total ?? 0)
+    const totalPages = totalCount === 0 ? 1 : Math.ceil(totalCount / pageSize)
+
+    const pagedQuery = `
+      SELECT *
+      ${unionQuery}
+      ORDER BY occurred_at DESC
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2}
+    `
 
     return NextResponse.json({
-      transactions: transactions.map((row) => ({
+      transactions: (await sql.query(pagedQuery, [...params, pageSize, offset])).map((row) => ({
         id: row.id,
         direction: row.direction,
         type: row.type,
@@ -120,6 +133,14 @@ export async function GET(request: NextRequest) {
         product_name: row.product_name,
         occurred_at: row.occurred_at,
       })),
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
     })
   } catch (error) {
     console.error('[Transactions] Failed to fetch transactions:', error)

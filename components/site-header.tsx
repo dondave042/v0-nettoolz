@@ -11,10 +11,10 @@ import { toast } from "sonner"
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "Products", href: "/#products" },
-  { label: "Categories", href: "/#categories" },
-  { label: "Testimonials", href: "/#testimonials" },
-  { label: "Contact", href: "/#contact" },
+  { label: "Shop", href: "/shop" },
+  { label: "Orders", href: "/orders" },
+  { label: "Wallet", href: "/wallet" },
+  { label: "Support", href: "/support" },
 ]
 
 interface BuyerSession {
@@ -114,6 +114,13 @@ export function SiteHeader() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Welcome, {buyer.name}</span>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/dashboard')}
+                  >
+                    Dashboard
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleLogout}
@@ -191,6 +198,15 @@ export function SiteHeader() {
                     <div className="px-3 py-2 text-sm text-muted-foreground">
                       Welcome, {buyer.name}
                     </div>
+                    <button
+                      onClick={() => {
+                        router.push('/dashboard')
+                        setMobileOpen(false)
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                    >
+                      Dashboard
+                    </button>
                     <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"

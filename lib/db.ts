@@ -1,8 +1,20 @@
 import { neon } from "@neondatabase/serverless"
 
-export function getDb() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL environment variable is not set")
+function getConnectionString() {
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL_NON_POOLING
+
+  if (!connectionString) {
+    throw new Error("Database connection string is not set")
   }
-  return neon(process.env.DATABASE_URL)
+
+  return connectionString
+}
+
+export function getDb() {
+  return neon(getConnectionString())
 }

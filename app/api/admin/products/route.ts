@@ -1,100 +1,84 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { isAuthenticated } from '@/lib/auth'
-import { getDb } from '@/lib/db'
+import { NextResponse } from "next/server"
+import { getDb } from "@/lib/db"
+import { getSession } from "@/lib/auth"
 
-// GET /api/admin/products — list all products with stock and credential counts
 export async function GET() {
-    if (!(await isAuthenticated())) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    try {
-        const sql = getDb()
-        const products = await sql`
-      SELECT
-        p.id,
-        p.name,
-        p.description,
-        p.price,
-        p.available_qty,
-        COUNT(bci.id)::int                                                    AS total_credentials,
-        COUNT(CASE WHEN bci.assigned_to_buyer_id IS NULL THEN 1 END)::int     AS unassigned_credentials,
-        p.created_at
-      FROM products p
-      LEFT JOIN buyer_credentials_inventory bci ON bci.product_id = p.id
-      GROUP BY p.id
-      ORDER BY p.created_at DESC
-    `
-        return NextResponse.json({ products })
-    } catch (error) {
-        console.error('[Admin/Products] GET error:', error)
-        return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
-    }
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const sql = getDb()
+  const products = await sql`
+    SELECT p.*, c.name as category_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    ORDER BY p.created_at DESC
+  `
+  return NextResponse.json(products)
 }
 
-// POST /api/admin/products
-// Body: { name, description, price, quantity, credentials: string[] }
-// credentials is an array of credential strings, one per unit of the product.
-// The array length should equal quantity (or be empty / partial — extra slots are left unfilled).
-export async function POST(request: NextRequest) {
-    if (!(await isAuthenticated())) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    try {
-        const body = await request.json()
-        const { name, description, price, quantity, credentials } = body as {
-            name: string
-            description?: string
-            price: number
-            quantity: number
-            credentials?: string[]
-        }
+export async function POST(request: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-            return NextResponse.json({ error: 'Product name is required' }, { status: 400 })
-        }
-        if (typeof price !== 'number' || price < 0) {
-            return NextResponse.json({ error: 'Valid price is required' }, { status: 400 })
-        }
-        const qty = Math.max(0, Math.floor(Number(quantity) || 0))
+  try {
+    const body = await request.json()
+    const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
 
-        const sql = getDb()
-
-        // Insert product
-        const [product] = await sql`
-      INSERT INTO products (name, description, price, available_qty)
-      VALUES (
-        ${name.trim()},
-        ${description?.trim() ?? null},
-        ${price},
-        ${qty}
-      )
-      RETURNING id, name, description, price, available_qty, created_at
+    const sql = getDb()
+    const result = await sql`
+      INSERT INTO products (sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password)
+      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${product_username || null}, ${product_password || null})
+      RETURNING *
     `
+    return NextResponse.json(result[0], { status: 201 })
+  } catch (error) {
+    console.error("Create product error:", error)
+    return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
+  }
+}
 
-        // Insert credentials into buyer_credentials_inventory
-        const credRows = Array.isArray(credentials)
-            ? credentials.filter((c) => typeof c === 'string' && c.trim().length > 0)
-            : []
+export async function PUT(request: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-        let insertedCredentials = 0
-        for (const cred of credRows) {
-            await sql`
-        INSERT INTO buyer_credentials_inventory (product_id, credential_data)
-        VALUES (${product.id}, ${cred.trim()})
-      `
-            insertedCredentials++
-        }
+  try {
+    const body = await request.json()
+    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
 
-        return NextResponse.json(
-            {
-                product,
-                insertedCredentials,
-                message: `Product created with ${insertedCredentials} credential(s) added to inventory.`,
-            },
-            { status: 201 }
-        )
-    } catch (error) {
-        console.error('[Admin/Products] POST error:', error)
-        return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
-    }
+    const sql = getDb()
+    const result = await sql`
+      UPDATE products
+      SET sku = ${sku}, name = ${name}, description = ${description}, price = ${parseFloat(price)},
+          available_qty = ${parseInt(available_qty)}, category_id = ${category_id || null},
+          badge = ${badge || null}, is_featured = ${is_featured || false}, 
+          images = ${images ? JSON.stringify(images) : null}, 
+          product_username = ${product_username || null}, 
+          product_password = ${product_password || null},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `
+    return NextResponse.json(result[0])
+  } catch (error) {
+    console.error("Update product error:", error)
+    return NextResponse.json({ error: "Failed to update product" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+    if (!id) return NextResponse.json({ error: "Product ID required" }, { status: 400 })
+
+    const sql = getDb()
+    await sql`DELETE FROM products WHERE id = ${parseInt(id)}`
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Delete product error:", error)
+    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 })
+  }
 }

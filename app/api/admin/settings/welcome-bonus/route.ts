@@ -1,57 +1,62 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getAdminSession } from "@/lib/admin-auth"
+import { NextResponse } from 'next/server'
+import { getAdminSession } from '@/lib/admin-auth'
 import {
-    getBuyerWelcomeBonus,
-    getBuyerWelcomeBonusAudit,
-    getWelcomeBonusFallback,
-    updateBuyerWelcomeBonus,
-} from "@/lib/welcome-bonus"
+  getBuyerWelcomeBonusAudit,
+  getBuyerWelcomeBonus,
+  getWelcomeBonusFallback,
+  updateBuyerWelcomeBonus,
+} from '@/lib/welcome-bonus'
 
 export async function GET() {
-    const session = await getAdminSession()
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  const admin = await getAdminSession()
 
-    try {
-        const [value, auditTrail] = await Promise.all([
-            getBuyerWelcomeBonus(),
-            getBuyerWelcomeBonusAudit(),
-        ])
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-        return NextResponse.json({
-            value,
-            fallback: getWelcomeBonusFallback(),
-            auditTrail,
-        })
-    } catch (error) {
-        console.error("[Admin Welcome Bonus] Failed to load setting:", error)
-        return NextResponse.json({ error: "Failed to load welcome bonus" }, { status: 500 })
-    }
+  try {
+    const value = await getBuyerWelcomeBonus()
+    const auditTrail = await getBuyerWelcomeBonusAudit()
+
+    return NextResponse.json({
+      value,
+      fallback: getWelcomeBonusFallback(),
+      auditTrail,
+    })
+  } catch (error) {
+    console.error('[Admin Welcome Bonus] Failed to fetch setting:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch welcome bonus setting' },
+      { status: 500 }
+    )
+  }
 }
 
-export async function PUT(request: NextRequest) {
-    const session = await getAdminSession()
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function PUT(request: Request) {
+  const admin = await getAdminSession()
+
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { value } = await request.json()
+    const parsedValue = Number(value)
+
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+      return NextResponse.json(
+        { error: 'Welcome bonus must be a valid non-negative number' },
+        { status: 400 }
+      )
     }
 
-    try {
-        const { value } = await request.json()
-        const normalizedValue = Number(value)
-
-        if (!Number.isFinite(normalizedValue) || normalizedValue < 0) {
-            return NextResponse.json({ error: "A valid non-negative amount is required" }, { status: 400 })
-        }
-
-        const nextValue = await updateBuyerWelcomeBonus(normalizedValue, {
-            id: Number(session.id),
-            email: String(session.email),
-        })
-
-        return NextResponse.json({ value: nextValue })
-    } catch (error) {
-        console.error("[Admin Welcome Bonus] Failed to update setting:", error)
-        return NextResponse.json({ error: "Failed to update welcome bonus" }, { status: 500 })
-    }
+    const updatedValue = await updateBuyerWelcomeBonus(parsedValue, admin)
+    return NextResponse.json({ success: true, value: updatedValue })
+  } catch (error) {
+    console.error('[Admin Welcome Bonus] Failed to update setting:', error)
+    return NextResponse.json(
+      { error: 'Failed to update welcome bonus setting' },
+      { status: 500 }
+    )
+  }
 }

@@ -1,36 +1,56 @@
-import { NextRequest, NextResponse } from "next/server"
-import { authenticateAdmin } from "@/lib/admin-users"
-import { createToken } from "@/lib/auth"
+import { NextResponse } from "next/server"
+import { getDb } from "@/lib/db"
+import { verifyPassword, createToken } from "@/lib/auth"
+import { cookies } from "next/headers"
 
-function buildAuthCookieResponse(payload: Record<string, unknown>, token: string) {
-  const response = NextResponse.json(payload)
-  response.cookies.set("admin_token", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24,
-  })
-  return response
-}
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const { email, password } = await request.json()
 
     if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      )
     }
 
-    const admin = await authenticateAdmin(String(email), String(password))
-    if (!admin) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    const sql = getDb()
+    const users = await sql`SELECT * FROM admin_users WHERE email = ${email.toLowerCase().trim()}`
+
+    if (users.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      )
     }
 
-    const token = await createToken({ id: admin.id, email: admin.email })
-    return buildAuthCookieResponse({ success: true, admin }, token)
+    const user = users[0]
+    const isValid = await verifyPassword(password, user.password_hash)
+
+    if (!isValid) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      )
+    }
+
+    const token = await createToken({ email: user.email, id: user.id })
+
+    const cookieStore = await cookies()
+    cookieStore.set("admin_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: "/",
+    })
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[Admin Login] Failed to sign in:", error)
-    return NextResponse.json({ error: "Failed to sign in" }, { status: 500 })
+    console.error("Login error:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
 }

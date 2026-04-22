@@ -22,6 +22,16 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
+const MAX_CART_ITEM_QUANTITY = 100
+
+function clampCartQuantity(quantity: number) {
+  if (!Number.isFinite(quantity)) {
+    return 1
+  }
+
+  return Math.min(MAX_CART_ITEM_QUANTITY, Math.max(1, Math.floor(quantity)))
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [isHydrated, setIsHydrated] = useState(false)
@@ -52,11 +62,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existingItem) {
         return prevItems.map((item) =>
           item.productId === newItem.productId
-            ? { ...item, quantity: item.quantity + newItem.quantity }
+            ? { ...item, quantity: clampCartQuantity(item.quantity + newItem.quantity) }
             : item
         )
       }
-      return [...prevItems, newItem]
+      return [...prevItems, { ...newItem, quantity: clampCartQuantity(newItem.quantity) }]
     })
   }
 
@@ -70,7 +80,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } else {
       setItems((prevItems) =>
         prevItems.map((item) =>
-          item.productId === productId ? { ...item, quantity } : item
+          item.productId === productId ? { ...item, quantity: clampCartQuantity(quantity) } : item
         )
       )
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowDownLeft, ArrowUpRight, Loader2, Wallet } from 'lucide-react'
 import { DashboardHeader } from '@/components/dashboard/header'
@@ -30,12 +30,32 @@ type TransactionFilters = {
   dateTo: string
 }
 
+type PaginationMeta = {
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+}
+
 export default function TransactionsPage() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userName, setUserName] = useState('User')
+  const [userBalance, setUserBalance] = useState(0)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    pageSize: 20,
+    totalCount: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  })
   const [filters, setFilters] = useState<TransactionFilters>({
     type: 'all',
     status: 'all',
@@ -44,42 +64,75 @@ export default function TransactionsPage() {
   })
 
   useEffect(() => {
-    async function loadTransactions() {
-      try {
-        const meRes = await fetch('/api/buyers/me')
-        if (!meRes.ok) {
-          router.push('/login')
-          return
-        }
+    setPage(1)
+  }, [filters, pageSize])
 
-        const meData = await meRes.json()
-        setUserName(meData.buyer?.name || 'User')
-
-        const params = new URLSearchParams()
-        if (filters.type !== 'all') params.set('type', filters.type)
-        if (filters.status !== 'all') params.set('status', filters.status)
-        if (filters.dateFrom) params.set('date_from', filters.dateFrom)
-        if (filters.dateTo) params.set('date_to', filters.dateTo)
-
-        const query = params.toString()
-        const transactionsRes = await fetch(`/api/transactions${query ? `?${query}` : ''}`)
-        const transactionsData = await transactionsRes.json()
-
-        if (!transactionsRes.ok) {
-          throw new Error(transactionsData.error || 'Failed to load transactions')
-        }
-
-        setTransactions(transactionsData.transactions || [])
-      } catch (error) {
-        console.error('[Transactions Page] Load error:', error)
-        toast.error('Failed to load transactions')
-      } finally {
-        setLoading(false)
+  const loadTransactions = useCallback(async (silent = false) => {
+    try {
+      const meRes = await fetch('/api/buyers/me', { cache: 'no-store' })
+      if (!meRes.ok) {
+        router.push('/login')
+        return
       }
-    }
 
+      const meData = await meRes.json()
+      setUserName(meData.buyer?.name || 'User')
+      setUserBalance(Number(meData.buyer?.balance ?? 0))
+
+      const params = new URLSearchParams()
+      if (filters.type !== 'all') params.set('type', filters.type)
+      if (filters.status !== 'all') params.set('status', filters.status)
+      if (filters.dateFrom) params.set('date_from', filters.dateFrom)
+      if (filters.dateTo) params.set('date_to', filters.dateTo)
+      params.set('page', String(page))
+      params.set('page_size', String(pageSize))
+
+      const query = params.toString()
+      const transactionsRes = await fetch(`/api/transactions${query ? `?${query}` : ''}`, {
+        cache: 'no-store',
+      })
+      const transactionsData = await transactionsRes.json()
+
+      if (!transactionsRes.ok) {
+        throw new Error(transactionsData.error || 'Failed to load transactions')
+      }
+
+      setTransactions(transactionsData.transactions || [])
+      setPagination(
+        transactionsData.pagination || {
+          page,
+          pageSize,
+          totalCount: transactionsData.transactions?.length || 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: page > 1,
+        }
+      )
+    } catch (error) {
+      console.error('[Transactions Page] Load error:', error)
+      if (!silent) toast.error('Failed to load transactions')
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [filters, page, pageSize, router])
+
+  useEffect(() => {
     loadTransactions()
-  }, [filters, router])
+
+    const interval = setInterval(() => {
+      if (!document.hidden) loadTransactions(true)
+    }, 5_000)
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadTransactions(true)
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [loadTransactions])
 
   if (loading) {
     return (
@@ -91,10 +144,14 @@ export default function TransactionsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <UserHeader onMenuToggle={setSidebarOpen} userName={userName} />
+      <UserHeader onMenuToggle={setSidebarOpen} userName={userName} userBalance={userBalance} />
 
       <div className="flex flex-1">
-        <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <UserSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          userBalance={userBalance}
+        />
 
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
@@ -155,6 +212,25 @@ export default function TransactionsPage() {
                   />
                 </div>
               </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {transactions.length} of {pagination.totalCount} results
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">Rows</label>
+                  <select
+                    value={pageSize}
+                    onChange={(event) => setPageSize(Number(event.target.value))}
+                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+              </div>
             </Card>
 
             <Card>
@@ -196,6 +272,31 @@ export default function TransactionsPage() {
                 </div>
               )}
             </Card>
+
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Page {pagination.page} of {pagination.totalPages}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={!pagination.hasPrevPage}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => current + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </main>
       </div>

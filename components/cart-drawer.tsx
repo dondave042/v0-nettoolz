@@ -13,7 +13,7 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
-  const { items, removeItem, updateQuantity, totalPrice, clearCart } = useCart()
+  const { items, removeItem, updateQuantity, totalPrice, clearCart, totalItems } = useCart()
   const router = useRouter()
 
   const handleCheckout = () => {
@@ -34,9 +34,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-card transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-card transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border p-4">
@@ -45,7 +44,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <h2 className="text-lg font-semibold text-foreground">Cart</h2>
             {items.length > 0 && (
               <span className="rounded-full bg-[#38bdf8] px-2 py-0.5 text-xs font-bold text-white">
-                {items.length}
+                {totalItems}
               </span>
             )}
           </div>
@@ -108,6 +107,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         onClick={() =>
                           updateQuantity(item.productId, item.quantity + 1)
                         }
+                        disabled={item.quantity >= 100}
                         className="rounded border border-border p-1 text-muted-foreground hover:text-foreground"
                         aria-label="Increase quantity"
                       >
