@@ -66,9 +66,11 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#38bdf8] to-[#0284c7] shadow-md">
-            <span className="font-bold text-white text-sm">NT</span>
-          </div>
+          <img
+            src="/images/logo.png"
+            alt="NETTOOLZ logo"
+            className="h-10 w-10 rounded-full object-cover"
+          />
           <span className="font-[var(--font-heading)] text-xl font-bold tracking-tight text-foreground">
             NETTOOLZ
           </span>
