@@ -9,6 +9,30 @@ type CreateDepositRequest = {
     currency?: string
 }
 
+async function safeParseJson(response: Response): Promise<any> {
+    const text = await response.text()
+
+    if (!text) {
+        return {}
+    }
+
+    try {
+        return JSON.parse(text)
+    } catch {
+        return { message: text }
+    }
+}
+
+function looksLikeInputValidationError(payload: any): boolean {
+    const message = String(payload?.message || payload?.error || '').toLowerCase()
+    return (
+        message.includes('issue with your input') ||
+        message.includes('invalid input') ||
+        message.includes('validation') ||
+        message.includes('invalid request')
+    )
+}
+
 export async function GET() {
     const buyer = await getBuyerSession()
 
@@ -81,6 +105,8 @@ export async function POST(request: Request) {
         const config = getPaymentConfig()
         const sql = getDb()
         const referenceId = `DEP-${buyer.id}-${Date.now()}`
+        const normalizedEmail = String(buyer.email || '').trim().toLowerCase()
+        const normalizedName = String(buyer.name || '').trim() || 'Customer'
 
         await createPendingDeposit(sql, {
             buyerId: buyer.id,
@@ -88,7 +114,23 @@ export async function POST(request: Request) {
             referenceId,
         })
 
-        const korapayResponse = await fetch(
+        const requestPayload = {
+            amount: Math.round(parsedAmount * 100),
+            currency: depositCurrency,
+            reference: referenceId,
+            customer: {
+                email: normalizedEmail,
+                name: normalizedName,
+            },
+            metadata: {
+                payment_kind: 'deposit',
+                buyer_id: String(buyer.id),
+            },
+            notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
+            redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
+        }
+
+        let korapayResponse = await fetch(
             `${config.korapayApiBaseUrl}/charges/initialize`,
             {
                 method: 'POST',
@@ -96,32 +138,38 @@ export async function POST(request: Request) {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${config.korapayApiKeySecret}`,
                 },
-                body: JSON.stringify({
-                    amount: Math.round(parsedAmount * 100),
-                    currency: depositCurrency,
-                    reference: referenceId,
-                    customer: {
-                        email: buyer.email,
-                        name: buyer.name || 'Customer',
-                    },
-                    metadata: {
-                        payment_kind: 'deposit',
-                        buyer_id: buyer.id,
-                    },
-                    notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-                    redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
-                }),
+                body: JSON.stringify(requestPayload),
             }
         )
 
-        const responsePayload = await korapayResponse.json()
+        let responsePayload = await safeParseJson(korapayResponse)
+
+        // Some Korapay setups expect major units for this endpoint.
+        // Retry once with unscaled amount when validation fails.
+        if (!korapayResponse.ok && looksLikeInputValidationError(responsePayload)) {
+            korapayResponse = await fetch(
+                `${config.korapayApiBaseUrl}/charges/initialize`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${config.korapayApiKeySecret}`,
+                    },
+                    body: JSON.stringify({
+                        ...requestPayload,
+                        amount: parsedAmount,
+                    }),
+                }
+            )
+            responsePayload = await safeParseJson(korapayResponse)
+        }
 
         if (!korapayResponse.ok) {
             await setDepositStatus(sql, referenceId, 'failed', 'reference_id')
 
             return NextResponse.json(
-                { error: responsePayload.message || 'Failed to initialize top-up payment' },
-                { status: korapayResponse.status }
+                { error: responsePayload.message || responsePayload.error || 'Failed to initialize top-up payment' },
+                { status: korapayResponse.status || 502 }
             )
         }
 
