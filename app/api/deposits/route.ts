@@ -44,7 +44,7 @@ async function initializeKorapayCharge(
     apiKey: string,
     payload: Record<string, any>
 ): Promise<KorapayInitResult> {
-    const response = await fetch(`${apiBaseUrl}/charges/initialize`, {
+    const response = await fetch(`${apiBaseUrl}/checkout/initialize`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

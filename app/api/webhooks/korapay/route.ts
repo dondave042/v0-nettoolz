@@ -296,7 +296,10 @@ export async function POST(request: NextRequest) {
     }
 
     switch (eventType) {
+      // charge.success and checkout.paid are Korapay Checkout API equivalents of charge.completed
       case 'charge.completed':
+      case 'charge.success':
+      case 'checkout.paid':
         if (deposit) {
           await handleDepositCompleted(sql, payload, deposit)
           await logWebhookEvent(sql, reference, null, eventType, payload, 'processed')
@@ -310,6 +313,7 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'charge.failed':
+      case 'checkout.failed':
         if (deposit) {
           await handleDepositFailed(sql, 'failed', deposit)
           await logWebhookEvent(sql, reference, null, eventType, payload, 'processed')
