@@ -45,36 +45,46 @@ async function initializeKorapayCharge(
     apiKey: string,
     payload: Record<string, any>
 ): Promise<KorapayInitResult> {
-    const endpointCandidates = ['/checkout/initialize', '/charges/initialize']
+    const normalizedBase = apiBaseUrl.replace(/\/$/, '')
+    const strippedBase = normalizedBase.replace(/\/api\/v1$/, '')
+    const baseCandidates = Array.from(new Set([normalizedBase, strippedBase]))
+    const endpointCandidates = [
+        '/checkout/initialize',
+        '/charges/initialize',
+        '/api/v1/checkout/initialize',
+        '/api/v1/charges/initialize',
+    ]
     let lastResult: KorapayInitResult | null = null
 
-    for (const endpoint of endpointCandidates) {
-        const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify(payload),
-        })
+    for (const base of baseCandidates) {
+        for (const endpoint of endpointCandidates) {
+            const response = await fetch(`${base}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify(payload),
+            })
 
-        const result: KorapayInitResult = {
-            ok: response.ok,
-            status: response.status,
-            payload: await safeParseJson(response),
-            endpoint,
-        }
+            const result: KorapayInitResult = {
+                ok: response.ok,
+                status: response.status,
+                payload: await safeParseJson(response),
+                endpoint: `${base}${endpoint}`,
+            }
 
-        if (result.ok) {
-            return result
-        }
+            if (result.ok) {
+                return result
+            }
 
-        const message = String(result.payload?.message || result.payload?.error || '').toLowerCase()
-        const isNotFound = result.status === 404 || message.includes('resource not found') || message.includes('not found')
+            const message = String(result.payload?.message || result.payload?.error || '').toLowerCase()
+            const isNotFound = result.status === 404 || message.includes('resource not found') || message.includes('not found')
 
-        lastResult = result
-        if (!isNotFound) {
-            return result
+            lastResult = result
+            if (!isNotFound) {
+                return result
+            }
         }
     }
 
