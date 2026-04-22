@@ -177,7 +177,7 @@ export async function POST(request: Request) {
         })
 
         const requestPayload = {
-            amount: Math.round(parsedAmount * 100),
+            amount: Math.round(parsedAmount),
             currency: depositCurrency,
             reference: referenceId,
             customer: {

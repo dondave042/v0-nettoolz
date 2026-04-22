@@ -24,6 +24,7 @@ export interface PaymentConfig {
  */
 let cachedConfig: PaymentConfig | null = null
 let configValidationError: Error | null = null
+let loggedDevFallbackWarning = false
 
 /**
  * Validate required environment variables for payment processing
@@ -40,6 +41,14 @@ function resolveWebhookBaseUrl(): string | undefined {
   )
 }
 
+function isProductionEnv(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
+
+function resolveDevWebhookBaseUrl(): string {
+  return normalizeBaseUrl(resolveWebhookBaseUrl() || 'http://localhost:3000')
+}
+
 function validateEnvironmentVariables(): Record<string, string | undefined> {
   const requiredVars = {
     KORAPAY_API_KEY_SECRET:
@@ -52,6 +61,21 @@ function validateEnvironmentVariables(): Record<string, string | undefined> {
     .map(([key]) => key)
 
   if (missing.length > 0) {
+    if (!isProductionEnv()) {
+      if (!loggedDevFallbackWarning) {
+        console.warn(
+          `[PaymentConfig] Missing vars in ${process.env.NODE_ENV || 'development'} mode (${missing.join(', ')}). Falling back to safe local defaults.`
+        )
+        loggedDevFallbackWarning = true
+      }
+
+      return {
+        KORAPAY_API_KEY_SECRET:
+          requiredVars.KORAPAY_API_KEY_SECRET || 'dev_korapay_disabled',
+        WEBHOOK_BASE_URL: resolveDevWebhookBaseUrl(),
+      }
+    }
+
     const error = createPaymentError(
       PaymentErrorCode.MISSING_ENV_VARS,
       `Missing required environment variables: ${missing.join(', ')}`,
@@ -104,7 +128,7 @@ export function getPaymentConfig(): PaymentConfig {
       korapayWebhookSecret: process.env.KORAPAY_WEBHOOK_SECRET,
       korapayApiBaseUrl: normalizeBaseUrl(
         process.env.KORAPAY_API_BASE_URL ||
-          'https://api.korapay.com/merchant/api/v1'
+        'https://api.korapay.com/merchant/api/v1'
       ),
       korapayCheckoutUrl: process.env.KORAPAY_CHECKOUT_URL,
       webhookBaseUrl: normalizeBaseUrl(vars.WEBHOOK_BASE_URL),

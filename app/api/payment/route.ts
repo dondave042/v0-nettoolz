@@ -120,7 +120,7 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${config.korapayApiKeySecret}`,
           },
           body: JSON.stringify({
-            amount: Math.round(normalizedAmount * 100), // Convert to cents
+            amount: Math.round(normalizedAmount),
             currency: currency.toUpperCase(),
             reference: korapayReference,
             customer: {

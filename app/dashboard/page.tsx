@@ -87,13 +87,33 @@ function DashboardPageContent() {
   const [topUpLoading, setTopUpLoading] = useState(false)
   const lastPaymentEventRef = useRef<{ purchase: string | null; deposit: string | null } | null>(null)
   const fastSyncUntilRef = useRef(0)
+  const redirectingToLoginRef = useRef(false)
+  const topUpPreviewAmount = Number.isFinite(Number(topUpAmount))
+    ? Math.max(0, Math.round(Number(topUpAmount)))
+    : 0
 
   const fetchDashboardData = useCallback(async (silent = false) => {
+    if (redirectingToLoginRef.current) {
+      return
+    }
+
     try {
       const summaryRes = await fetch('/api/dashboard/summary', { cache: 'no-store' })
 
       if (!summaryRes.ok) {
-        router.push("/login")
+        if (summaryRes.status === 401) {
+          if (!redirectingToLoginRef.current) {
+            redirectingToLoginRef.current = true
+            router.replace('/login')
+          }
+          setLoading(false)
+          return
+        }
+
+        throw new Error(`Failed to fetch dashboard summary (${summaryRes.status})`)
+      }
+
+      if (redirectingToLoginRef.current) {
         return
       }
 
@@ -140,6 +160,7 @@ function DashboardPageContent() {
   }
 
   useEffect(() => {
+    let disposed = false
     const cameFromPayment = searchParams.get('refresh') === 'payment'
     if (cameFromPayment) {
       // Poll aggressively for one minute after returning from payment provider.
@@ -152,9 +173,13 @@ function DashboardPageContent() {
     // Poll frequently after payment redirect, then fall back to normal cadence.
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     const scheduleNextPoll = () => {
+      if (disposed || redirectingToLoginRef.current) {
+        return
+      }
+
       const intervalMs = Date.now() < fastSyncUntilRef.current ? 1_500 : 5_000
       timeoutId = setTimeout(async () => {
-        if (!document.hidden) {
+        if (!disposed && !document.hidden && !redirectingToLoginRef.current) {
           await fetchDashboardData(true)
         }
         scheduleNextPoll()
@@ -169,6 +194,7 @@ function DashboardPageContent() {
     document.addEventListener("visibilitychange", handleVisibility)
 
     return () => {
+      disposed = true
       if (timeoutId) clearTimeout(timeoutId)
       document.removeEventListener("visibilitychange", handleVisibility)
     }
@@ -258,25 +284,30 @@ function DashboardPageContent() {
                     <p className="mt-1 text-xs text-muted-foreground">Available for purchases</p>
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min="100"
-                        step="100"
-                        value={topUpAmount}
-                        onChange={(event) => setTopUpAmount(event.target.value)}
-                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none sm:w-36"
-                        placeholder="Top-up amount"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleTopUp}
-                        disabled={topUpLoading}
-                        className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                        {topUpLoading ? 'Loading...' : 'Top Up Balance'}
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          min="100"
+                          step="100"
+                          value={topUpAmount}
+                          onChange={(event) => setTopUpAmount(event.target.value)}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none sm:w-36"
+                          placeholder="Top-up amount"
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleTopUp}
+                          disabled={topUpLoading}
+                          className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          {topUpLoading ? 'Loading...' : 'Top Up Balance'}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Checkout amount: NGN {topUpPreviewAmount.toLocaleString()}.00
+                      </p>
                     </div>
                     <div className="h-16 w-16 rounded-xl bg-[#38bdf8]/10 flex items-center justify-center">
                       <Wallet className="h-8 w-8 text-[#38bdf8]" />
