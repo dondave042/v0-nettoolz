@@ -73,6 +73,7 @@ export function HeroSection() {
                 src="/images/logo.png"
                 alt="NETTOOLZ Premium Web Logs"
                 className="relative h-80 w-80 drop-shadow-2xl"
+                style={{ fontSize: "1px" }}
               />
             </div>
           </div>
