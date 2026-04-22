@@ -34,6 +34,24 @@ export async function CategoriesSection() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* All Categories Button */}
+          <a
+            href={`#products`}
+            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-8 transition-all duration-300 hover:border-[#38bdf8] hover:shadow-xl hover:shadow-[#38bdf8]/20"
+          >
+            {/* Hover gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#38bdf8]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+            <div className="relative z-10 flex flex-col gap-4">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[#e0f2fe] text-[#0284c7] transition-colors group-hover:bg-[#38bdf8] group-hover:text-white">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="mb-1 font-semibold text-foreground">All Categories</h3>
+                <p className="text-sm text-muted-foreground">Browse our complete collection of premium accounts</p>
+              </div>
+            </div>
+          </a>
+
           {categories.map((cat) => {
             const Icon = iconMap[cat.icon] || Users
             return (
