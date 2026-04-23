@@ -7,6 +7,7 @@ import { ProductsSection } from "@/components/products-section"
 import { FeaturesSection } from "@/components/features-section"
 import { TestimonialsSection } from "@/components/testimonials-section"
 import { ContactSection } from "@/components/contact-section"
+import { Suspense } from "react"
 
 export default function HomePage() {
   return (
@@ -16,7 +17,9 @@ export default function HomePage() {
       <main className="flex-1">
         <HeroSection />
         <CategoriesSection />
-        <ProductsSection />
+        <Suspense>
+          <ProductsSection />
+        </Suspense>
         <FeaturesSection />
         <TestimonialsSection />
         <ContactSection />
