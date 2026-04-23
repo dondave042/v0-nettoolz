@@ -71,10 +71,18 @@ export async function DELETE(request: Request) {
 
   try {
     const { searchParams } = new URL(request.url)
+    const deleteAll = searchParams.get("all")
     const id = searchParams.get("id")
-    if (!id) return NextResponse.json({ error: "Product ID required" }, { status: 400 })
 
     const sql = getDb()
+
+    if (deleteAll === "true") {
+      const deleted = await sql`DELETE FROM products RETURNING id`
+      return NextResponse.json({ success: true, deletedCount: deleted.length })
+    }
+
+    if (!id) return NextResponse.json({ error: "Product ID required" }, { status: 400 })
+
     await sql`DELETE FROM products WHERE id = ${parseInt(id)}`
     return NextResponse.json({ success: true })
   } catch (error) {

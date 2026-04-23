@@ -1,9 +1,14 @@
 import { getDb } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession as getAdminSession } from './auth'
+import { getAdminSession } from './admin-auth'
 
 export async function ensureBalanceAdjustmentsTable() {
   const sql = getDb()
+
+  await sql`
+    ALTER TABLE admin_users
+    ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'admin'
+  `
 
   await sql`
     CREATE TABLE IF NOT EXISTS balance_adjustments (
@@ -147,6 +152,10 @@ export async function POST(request: Request) {
 
   if (!admin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (admin.role !== 'admin' && admin.role !== 'super_admin') {
+    return NextResponse.json({ error: 'Forbidden: admin role required' }, { status: 403 })
   }
 
   try {

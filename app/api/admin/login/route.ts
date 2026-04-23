@@ -34,7 +34,11 @@ export async function POST(request: Request) {
       )
     }
 
-    const token = await createToken({ email: user.email, id: user.id })
+    const token = await createToken({
+      email: user.email,
+      id: user.id,
+      role: user.role || "admin",
+    })
 
     const cookieStore = await cookies()
     cookieStore.set("admin_token", token, {
