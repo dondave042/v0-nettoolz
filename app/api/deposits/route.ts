@@ -177,12 +177,15 @@ export async function POST(request: Request) {
         const referenceId = `DEP-${buyer.id}-${Date.now()}`
         const normalizedEmail = String(buyer.email || '').trim().toLowerCase()
         const normalizedName = String(buyer.name || '').trim() || 'Customer'
+<<<<<<< HEAD
         const requestOrigin = new URL(request.url).origin
         const callbackBaseUrl =
             process.env.NODE_ENV === 'production' &&
                 (!config.webhookBaseUrl || /localhost|127\.0\.0\.1/i.test(config.webhookBaseUrl))
                 ? requestOrigin
                 : config.webhookBaseUrl
+=======
+>>>>>>> 8557ba178ba79ba26de0e53eaba0b25c61be2d3e
         const apiKeyCandidates = Array.from(
             new Set(
                 [
