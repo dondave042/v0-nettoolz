@@ -1,4 +1,4 @@
-import { BarChart3, LayoutDashboard, LogOut, Package, PlusCircle, Settings, Zap } from "lucide-react"
+import { BarChart3, LayoutDashboard, LogOut, Package, PlusCircle, Settings, Users, Zap } from "lucide-react"
 import { motion } from "framer-motion"
 import { AdminTab } from "../types"
 
@@ -12,6 +12,7 @@ const menuItems = [
     { id: "products", label: "Products", icon: Package },
     { id: "upload", label: "Upload Product", icon: PlusCircle },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "users", label: "Users & Balances", icon: Users },
     { id: "settings", label: "Settings", icon: Settings },
 ]
 

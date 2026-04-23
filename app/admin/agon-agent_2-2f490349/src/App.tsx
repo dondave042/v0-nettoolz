@@ -7,6 +7,7 @@ import ProductsTable from "./components/ProductsTable"
 import Settings from "./components/Settings"
 import Sidebar from "./components/Sidebar"
 import UploadProduct from "./components/UploadProduct"
+import Users from "./components/Users"
 import { mockProducts } from "./data/mockData"
 import { AdminTab, Product } from "./types"
 
@@ -208,6 +209,8 @@ export default function App({ initialTab = "dashboard" }: AppProps) {
                 return <UploadProduct onAddProduct={handleAddProduct} />
             case "analytics":
                 return <Analytics products={products} />
+            case "users":
+                return <Users />
             case "settings":
                 return <Settings />
             case "dashboard":
