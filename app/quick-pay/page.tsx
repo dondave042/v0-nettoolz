@@ -54,8 +54,10 @@ export default function QuickPayPage() {
             const result = await res.json()
             if (!res.ok) throw new Error(result.error ?? "Payment failed")
 
-            if (result.checkoutUrl) {
-                window.location.href = result.checkoutUrl
+            const checkoutUrl = result.checkout_url || result.checkoutUrl
+
+            if (checkoutUrl) {
+                window.location.href = checkoutUrl
             } else {
                 setStep("done")
             }
@@ -88,10 +90,10 @@ export default function QuickPayPage() {
                             <div key={s} className="flex items-center gap-2">
                                 <div
                                     className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all ${s === step
-                                            ? "bg-[#38bdf8] text-white"
-                                            : (["amount", "confirm", "done"].indexOf(step) > i)
-                                                ? "bg-emerald-500 text-white"
-                                                : "bg-border text-muted-foreground"
+                                        ? "bg-[#38bdf8] text-white"
+                                        : (["amount", "confirm", "done"].indexOf(step) > i)
+                                            ? "bg-emerald-500 text-white"
+                                            : "bg-border text-muted-foreground"
                                         }`}
                                 >
                                     {(["amount", "confirm", "done"].indexOf(step) > i) ? (
@@ -116,8 +118,8 @@ export default function QuickPayPage() {
                                             key={amt}
                                             onClick={() => setAmount(String(amt))}
                                             className={`rounded-xl border px-2 py-2.5 text-sm font-medium transition-all ${amount === String(amt)
-                                                    ? "border-[#38bdf8] bg-[#38bdf8]/10 text-[#38bdf8]"
-                                                    : "border-border text-muted-foreground hover:border-[#38bdf8]/50"
+                                                ? "border-[#38bdf8] bg-[#38bdf8]/10 text-[#38bdf8]"
+                                                : "border-border text-muted-foreground hover:border-[#38bdf8]/50"
                                                 }`}
                                         >
                                             ₦{amt.toLocaleString()}

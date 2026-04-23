@@ -130,8 +130,11 @@ export default function WalletPage() {
             })
             const result = await res.json()
             if (!res.ok) throw new Error(result.error ?? "Top-up failed")
-            if (result.checkoutUrl) {
-                window.location.href = result.checkoutUrl
+
+            const checkoutUrl = result.checkout_url || result.checkoutUrl
+
+            if (checkoutUrl) {
+                window.location.href = checkoutUrl
             } else {
                 toast.success("Top-up initiated")
                 setTopUpAmount("")
@@ -225,8 +228,8 @@ export default function WalletPage() {
                                             key={amt}
                                             onClick={() => setTopUpAmount(String(amt))}
                                             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${topUpAmount === String(amt)
-                                                    ? "border-[#38bdf8] bg-[#38bdf8]/10 text-[#38bdf8]"
-                                                    : "border-border text-muted-foreground hover:border-[#38bdf8]/50 hover:text-foreground"
+                                                ? "border-[#38bdf8] bg-[#38bdf8]/10 text-[#38bdf8]"
+                                                : "border-border text-muted-foreground hover:border-[#38bdf8]/50 hover:text-foreground"
                                                 }`}
                                         >
                                             ₦{amt.toLocaleString()}
