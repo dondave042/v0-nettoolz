@@ -1,5 +1,8 @@
-import { getDb } from "@/lib/db"
+"use client"
+
 import { ProductCard } from "@/components/product-card"
+import { Loader2 } from "lucide-react"
+import { useProducts } from "@/hooks/use-products"
 
 interface Product {
   id: number
@@ -11,16 +14,23 @@ interface Product {
   badge: string | null
   is_featured: boolean
   category_name: string
+  images?: string[]
 }
 
-export async function ProductsSection() {
-  const sql = getDb()
-  const products = await sql`
-    SELECT p.*, c.name as category_name
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    ORDER BY p.is_featured DESC, p.created_at DESC
-  ` as Product[]
+export function ProductsSection() {
+  const { products, loading } = useProducts(false)
+
+  if (loading) {
+    return (
+      <section id="products" className="relative bg-gradient-to-b from-secondary/30 to-background py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <div className="flex min-h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="products" className="relative bg-gradient-to-b from-secondary/30 to-background py-20 lg:py-28">
