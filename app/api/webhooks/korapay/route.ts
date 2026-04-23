@@ -43,6 +43,26 @@ interface KorapayWebhookPayload {
 // Webhook processing semaphore to prevent race conditions during concurrent requests
 const processingWebhooks = new Set<string>();
 
+function getEventTypeAliases(eventType: string): string[] {
+  switch (eventType) {
+    case 'charge.completed':
+    case 'charge.success':
+    case 'checkout.paid':
+      return ['charge.completed', 'charge.success', 'checkout.paid']
+    case 'charge.failed':
+    case 'checkout.failed':
+      return ['charge.failed', 'checkout.failed']
+    case 'charge.cancelled':
+      return ['charge.cancelled']
+    default:
+      return [eventType]
+  }
+}
+
+function getProcessingKey(reference: string, eventType: string): string {
+  return `${reference}:${getEventTypeAliases(eventType)[0]}`
+}
+
 function validateSignature(payload: string, signature: string, secret: string): boolean {
   const expectedSignature = crypto
     .createHmac('sha256', secret)
@@ -58,11 +78,30 @@ function validateSignature(payload: string, signature: string, secret: string): 
   }
 }
 
-async function isDuplicateWebhook(sql: ReturnType<typeof getDb>, reference: string): Promise<boolean> {
+async function isDuplicateWebhook(
+  sql: ReturnType<typeof getDb>,
+  reference: string,
+  eventType: string
+): Promise<boolean> {
   try {
-    const existing = await sql`
-      SELECT id FROM payment_webhooks WHERE reference_id = ${reference} LIMIT 1
-    `;
+    const eventTypeAliases = getEventTypeAliases(eventType)
+    const existing = eventTypeAliases.length === 1
+      ? await sql`
+          SELECT id
+          FROM payment_webhooks
+          WHERE reference_id = ${reference}
+            AND event_type = ${eventTypeAliases[0]}
+            AND status = 'processed'
+          LIMIT 1
+        `
+      : await sql`
+          SELECT id
+          FROM payment_webhooks
+          WHERE reference_id = ${reference}
+            AND event_type = ANY(${eventTypeAliases})
+            AND status = 'processed'
+          LIMIT 1
+        `
     return existing.length > 0;
   } catch (error) {
     console.error('[Webhook] Error checking duplicate:', error);
@@ -100,9 +139,16 @@ async function logWebhookEvent(
 async function findOrderByReference(
   sql: ReturnType<typeof getDb>,
   reference: string
-): Promise<Array<{ id: string; buyer_id: string; product_id: string; quantity: number; buyer_email: string }>> {
+): Promise<Array<{
+  id: string;
+  buyer_id: string;
+  product_id: string;
+  quantity: number;
+  buyer_email: string;
+  payment_status: string | null;
+}>> {
   return await sql`
-    SELECT id, buyer_id, product_id, quantity, buyer_email
+    SELECT id, buyer_id, product_id, quantity, buyer_email, payment_status
     FROM orders
     WHERE payment_reference_id = ${reference}
   `;
@@ -125,8 +171,19 @@ async function findDepositByReference(
 async function handlePaymentCompleted(
   sql: ReturnType<typeof getDb>,
   payload: KorapayWebhookPayload,
-  order: { id: string; buyer_id: string; product_id: string; quantity: number; buyer_email: string }
+  order: {
+    id: string;
+    buyer_id: string;
+    product_id: string;
+    quantity: number;
+    buyer_email: string;
+    payment_status?: string | null;
+  }
 ): Promise<void> {
+  if (order.payment_status === PaymentStatus.COMPLETED) {
+    return
+  }
+
   await ensureOrderCredentialsTable()
 
   // Get available credentials
@@ -202,8 +259,12 @@ async function handleDepositFailed(
 async function handlePaymentFailed(
   sql: ReturnType<typeof getDb>,
   payload: KorapayWebhookPayload,
-  order: { id: string }
+  order: { id: string; payment_status?: string | null }
 ): Promise<void> {
+  if (order.payment_status === PaymentStatus.COMPLETED) {
+    return
+  }
+
   await sql`
     UPDATE orders
     SET
@@ -218,8 +279,12 @@ async function handlePaymentFailed(
 async function handlePaymentCancelled(
   sql: ReturnType<typeof getDb>,
   payload: KorapayWebhookPayload,
-  order: { id: string }
+  order: { id: string; payment_status?: string | null }
 ): Promise<void> {
+  if (order.payment_status === PaymentStatus.COMPLETED) {
+    return
+  }
+
   await sql`
     UPDATE orders
     SET
@@ -271,18 +336,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  const processingKey = getProcessingKey(reference, eventType)
+
   // In-process duplicate guard (for concurrent requests in the same instance)
-  if (processingWebhooks.has(reference)) {
-    console.warn('[Webhook] Already processing:', reference);
+  if (processingWebhooks.has(processingKey)) {
+    console.warn('[Webhook] Already processing:', processingKey);
     return NextResponse.json({ success: true }, { status: 200 });
   }
-  processingWebhooks.add(reference);
+  processingWebhooks.add(processingKey);
 
   try {
     // Persistent duplicate guard (across restarts / multiple instances)
-    const isDuplicate = await isDuplicateWebhook(sql, reference);
+    const isDuplicate = await isDuplicateWebhook(sql, reference, eventType);
     if (isDuplicate) {
-      console.log('[Webhook] Duplicate webhook, skipping:', reference);
+      console.log('[Webhook] Duplicate webhook, skipping:', processingKey);
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
@@ -301,7 +368,7 @@ export async function POST(request: NextRequest) {
       case 'charge.success':
       case 'checkout.paid':
         if (deposit) {
-          await handleDepositCompleted(sql, payload, deposit)
+          await handleDepositCompleted(sql, deposit)
           await logWebhookEvent(sql, reference, null, eventType, payload, 'processed')
           break
         }
@@ -362,6 +429,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   } finally {
-    processingWebhooks.delete(reference);
+    processingWebhooks.delete(processingKey);
   }
 }
