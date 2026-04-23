@@ -3,7 +3,22 @@ import { getAdminSession } from "@/lib/admin-auth"
 import { getSupabaseServerClient } from "@/lib/supabase"
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
-const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
+const ALLOWED_MIME_TYPES = new Set([
+    "image/jpeg",
+    "image/jpg",
+    "image/pjpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+])
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"])
+const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+}
 
 const rolesAllowedToManageCatalog = new Set([
     "admin",
@@ -29,6 +44,11 @@ function sanitizeName(fileName: string) {
         .slice(-80)
 }
 
+function getFileExtension(fileName: string) {
+    const parts = fileName.toLowerCase().split(".")
+    return parts.length > 1 ? parts.pop() || "" : ""
+}
+
 export async function POST(request: Request) {
     const session = await getAdminSession()
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -44,7 +64,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Image file is required" }, { status: 400 })
         }
 
-        if (!ALLOWED_MIME_TYPES.has(file.type)) {
+        const fileExtension = getFileExtension(file.name || "")
+        const hasAllowedMimeType = ALLOWED_MIME_TYPES.has(file.type)
+        const hasAllowedExtension = ALLOWED_EXTENSIONS.has(fileExtension)
+
+        if (!hasAllowedMimeType && !hasAllowedExtension) {
             return NextResponse.json({ error: "Unsupported file type" }, { status: 400 })
         }
 
@@ -54,8 +78,9 @@ export async function POST(request: Request) {
 
         const bucketName = process.env.SUPABASE_PRODUCT_IMAGES_BUCKET || "product-images"
         const safeFileName = sanitizeName(file.name || "product-image")
-        const extension = safeFileName.includes(".") ? safeFileName.split(".").pop() : "png"
+        const extension = getFileExtension(safeFileName) || fileExtension || "png"
         const path = `admin-products/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
+        const contentType = hasAllowedMimeType ? file.type : (MIME_TYPE_BY_EXTENSION[extension] || "image/png")
 
         const supabase = getSupabaseServerClient()
         const { error: uploadError } = await supabase.storage
@@ -63,7 +88,7 @@ export async function POST(request: Request) {
             .upload(path, file, {
                 cacheControl: "3600",
                 upsert: false,
-                contentType: file.type,
+                contentType,
             })
 
         if (uploadError) {
