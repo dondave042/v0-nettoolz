@@ -15,6 +15,8 @@ import {
 
 type CheckoutItemInput = {
     product_id: number
+    productId?: number
+    id?: number
     quantity: number
 }
 
@@ -211,7 +213,7 @@ export async function POST(request: Request) {
         }
 
         const normalizedItems = requestedItems.map((item: CheckoutItemInput) => ({
-            productId: Number(item.product_id),
+            productId: Number(item.product_id ?? item.productId ?? item.id),
             quantity: Number(item.quantity),
         }))
 
