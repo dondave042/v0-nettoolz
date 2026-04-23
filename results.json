@@ -1,0 +1,12 @@
+[
+  {
+    "table_name": "buyers",
+    "column_name": "updated_at",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "table_name": "deposits",
+    "column_name": "updated_at",
+    "column_default": "CURRENT_TIMESTAMP"
+  }
+]
