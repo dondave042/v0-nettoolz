@@ -65,6 +65,82 @@ export async function ensureOrderCredentialsTable() {
     return sql
 }
 
+export async function ensureLegacyProductCredentialInventory(
+    sql: ReturnType<typeof getDb>,
+    productId: number
+) {
+    await ensureCredentialsInventoryTables()
+
+    const existingInventoryRows = await sql`
+      SELECT COUNT(*) AS count
+      FROM buyer_credentials_inventory
+      WHERE product_id = ${productId}
+    `
+
+    const existingCount = Number(existingInventoryRows[0]?.count ?? 0)
+    if (existingCount > 0) {
+        return existingCount
+    }
+
+    const products = await sql`
+      SELECT product_username, product_password
+      FROM products
+      WHERE id = ${productId}
+      LIMIT 1
+    `
+
+    if (products.length === 0) {
+        return 0
+    }
+
+    const product = products[0] as {
+        product_username?: string | null
+        product_password?: string | null
+    }
+
+    const username = typeof product.product_username === 'string' ? product.product_username.trim() : ''
+    const password = typeof product.product_password === 'string' ? product.product_password.trim() : ''
+
+    if (!username && !password) {
+        return 0
+    }
+
+    const credentialColumns = await sql`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'buyer_credentials_inventory'
+    `
+
+    const columnSet = new Set(
+        credentialColumns.map((row: { column_name: string }) => row.column_name)
+    )
+
+    if (columnSet.has('credentials_index')) {
+        await sql`
+          INSERT INTO buyer_credentials_inventory (product_id, credentials_index, username, password, credential_data)
+          VALUES (
+            ${productId},
+            1,
+            ${username || null},
+            ${password || null},
+            ${JSON.stringify({ username: username || null, password: password || null })}
+          )
+        `
+    } else {
+        await sql`
+          INSERT INTO buyer_credentials_inventory (product_id, username, password, credential_data)
+          VALUES (
+            ${productId},
+            ${username || null},
+            ${password || null},
+            ${JSON.stringify({ username: username || null, password: password || null })}
+          )
+        `
+    }
+
+    return 1
+}
+
 export function extractCredentialFields(row: {
     username?: unknown
     password?: unknown
