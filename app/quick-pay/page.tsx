@@ -1,4 +1,10 @@
-"use client"
+cd "c:\Users\HomePC\Desktop\v0-nettoolz.worktrees\copilot-worktree-2026-04-23T02-59-07"
+git add app / admin / agon - agent_2 - 2f490349 / src /
+    git commit - m "feat: add Users & Balances tab and fix naira pricing"
+git pushcd "c:\Users\HomePC\Desktop\v0-nettoolz.worktrees\copilot-worktree-2026-04-23T02-59-07"
+git add app / admin / agon - agent_2 - 2f490349 / src /
+    git commit - m "feat: add Users & Balances tab and fix naira pricing"
+git push"use client"
 
 import { useState } from "react"
 import Link from "next/link"
