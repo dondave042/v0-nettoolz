@@ -32,6 +32,55 @@ function isBalanceCheckoutMethod(methodType: string | null | undefined) {
     return normalized === 'dashboard' || normalized === 'balance' || normalized === 'wallet'
 }
 
+async function ensureBalancePaymentMethod(sql: ReturnType<typeof getDb>) {
+    const existing = await sql`
+        SELECT id, name, type
+        FROM payment_methods
+        WHERE is_active = true AND LOWER(type) IN ('balance', 'wallet', 'dashboard')
+        ORDER BY sort_order ASC, id ASC
+        LIMIT 1
+    `
+
+    if (existing.length > 0) {
+        return {
+            id: Number(existing[0].id),
+            name: String(existing[0].name || 'Wallet Balance'),
+            type: String(existing[0].type || 'balance'),
+        }
+    }
+
+    const inserted = await sql`
+        INSERT INTO payment_methods (
+            name,
+            type,
+            config,
+            is_active,
+            sort_order,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            'Wallet Balance',
+            'balance',
+            ${JSON.stringify({
+        displayName: 'Wallet Balance',
+        description: 'All purchases are deducted from the buyer wallet balance.',
+    })}::jsonb,
+            true,
+            0,
+            NOW(),
+            NOW()
+        )
+        RETURNING id, name, type
+    `
+
+    return {
+        id: Number(inserted[0].id),
+        name: String(inserted[0].name || 'Wallet Balance'),
+        type: String(inserted[0].type || 'balance'),
+    }
+}
+
 async function assignCredentialsToOrder(sql: ReturnType<typeof getDb>, orderId: number | string, buyerId: number, productId: number, quantity: number) {
     await ensureOrderCredentialsTable()
     await ensureLegacyProductCredentialInventory(sql, productId)
@@ -196,20 +245,15 @@ export async function POST(request: Request) {
 
     try {
         const { product_id, quantity, payment_method_id, items } = await request.json()
-        const parsedPaymentMethodId = Number(payment_method_id)
         const requestedItems = Array.isArray(items) && items.length > 0
             ? items
             : [{ product_id, quantity }]
 
-        if (!parsedPaymentMethodId || requestedItems.length === 0) {
+        if (requestedItems.length === 0) {
             return NextResponse.json(
-                { error: 'Missing required fields: items/product_id, quantity, payment_method_id' },
+                { error: 'Missing required fields: items/product_id, quantity' },
                 { status: 400 }
             )
-        }
-
-        if (!Number.isInteger(parsedPaymentMethodId) || parsedPaymentMethodId <= 0) {
-            throw new ValidationError('Payment method ID must be a positive integer')
         }
 
         const normalizedItems = requestedItems.map((item: CheckoutItemInput) => ({
@@ -232,6 +276,7 @@ export async function POST(request: Request) {
 
         const sql = getDb()
         await ensureCredentialsInventoryTables()
+        const balanceMethod = await ensureBalancePaymentMethod(sql)
 
         // Check available credentials across legacy and current inventory schemas.
         const credentialColumns = await sql`
@@ -244,18 +289,9 @@ export async function POST(request: Request) {
             credentialColumns.map((row: { column_name: string }) => row.column_name)
         )
 
-        // Get payment method
-        const methods = await sql`
-      SELECT id, name, type FROM payment_methods WHERE id = ${parsedPaymentMethodId} AND is_active = true
-    `
-
-        if (methods.length === 0) {
-            throw new ValidationError('Invalid or inactive payment method')
-        }
-
-        const checkoutMethod = methods[0]?.type || methods[0]?.name || null
+        const checkoutMethod = balanceMethod.type
         const isDashboardCheckout = isBalanceCheckoutMethod(checkoutMethod)
-        const paymentReference = `${isDashboardCheckout ? 'DBAL' : 'ORD'}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+        const paymentReference = `DBAL-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
         const preparedItems: PreparedCheckoutItem[] = []
 
@@ -342,7 +378,7 @@ export async function POST(request: Request) {
                 productId: item.productId,
                 quantity: item.quantity,
                 totalPrice: item.totalPrice,
-                paymentMethodId: parsedPaymentMethodId,
+                paymentMethodId: balanceMethod.id,
                 paymentMethodType: checkoutMethod,
                 paymentReference,
                 paymentStatus: isDashboardCheckout ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
@@ -371,7 +407,7 @@ export async function POST(request: Request) {
                     product_id: createdOrders[0].product_id ?? preparedItems[0].productId,
                     quantity: createdOrders[0].quantity ?? preparedItems[0].quantity,
                     total_price: createdOrders[0].total_price ?? createdOrders[0].total ?? preparedItems[0].totalPrice,
-                    payment_method_id: createdOrders[0].payment_method_id ?? parsedPaymentMethodId,
+                    payment_method_id: createdOrders[0].payment_method_id ?? balanceMethod.id,
                     status: createdOrders[0].status,
                     payment_status: createdOrders[0].payment_status ?? (isDashboardCheckout ? PaymentStatus.COMPLETED : PaymentStatus.PENDING),
                     payment_reference_id: createdOrders[0].payment_reference_id ?? paymentReference,
@@ -382,7 +418,7 @@ export async function POST(request: Request) {
                     product_id: order.product_id ?? preparedItems[index].productId,
                     quantity: order.quantity ?? preparedItems[index].quantity,
                     total_price: order.total_price ?? order.total ?? preparedItems[index].totalPrice,
-                    payment_method_id: order.payment_method_id ?? parsedPaymentMethodId,
+                    payment_method_id: order.payment_method_id ?? balanceMethod.id,
                     status: order.status,
                     payment_status: order.payment_status ?? (isDashboardCheckout ? PaymentStatus.COMPLETED : PaymentStatus.PENDING),
                     payment_reference_id: order.payment_reference_id ?? paymentReference,

@@ -1,317 +1,260 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, Loader2, X } from "lucide-react"
+import { useEffect, useState } from "react"
+import { CreditCard, Loader2, Save, ShieldCheck, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
 interface PaymentMethod {
-  id: number
-  name: string
-  type: string
-  config: Record<string, unknown> | null
-  is_active: boolean
-  sort_order: number
-  created_at: string
-  updated_at: string
+    id: number
+    name: string
+    type: string
+    config: Record<string, unknown> | null
+    is_active: boolean
+    sort_order: number
 }
 
-const emptyForm = {
-  name: "",
-  type: "",
-  is_active: true,
-  sort_order: 0,
-  config: {},
+const defaultForm = {
+    name: "Korapay",
+    is_active: true,
+    sort_order: 0,
+    displayName: "Korapay",
+    description: "Secure Korapay checkout for wallet top-ups.",
 }
 
 export default function PaymentMethodsPage() {
-  const [methods, setMethods] = useState<PaymentMethod[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editId, setEditId] = useState<number | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const [saving, setSaving] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [legacyMethodCount, setLegacyMethodCount] = useState(0)
+    const [korapayMethodId, setKorapayMethodId] = useState<number | null>(null)
+    const [form, setForm] = useState(defaultForm)
 
-  useEffect(() => {
-    fetchMethods()
-  }, [])
+    useEffect(() => {
+        void fetchSetup()
+    }, [])
 
-  async function fetchMethods() {
-    setLoading(true)
-    try {
-      const res = await fetch("/api/admin/payment-methods")
-      if (res.ok) {
-        const data = await res.json()
-        setMethods(data.methods || [])
-      }
-    } catch (error) {
-      console.error("Fetch error:", error)
-      toast.error("Failed to load payment methods")
-    } finally {
-      setLoading(false)
-    }
-  }
+    async function fetchSetup() {
+        setLoading(true)
+        try {
+            const res = await fetch("/api/admin/payment-methods")
+            const data = await res.json()
 
-  function openAdd() {
-    setForm(emptyForm)
-    setEditId(null)
-    setShowForm(true)
-  }
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to load payment setup")
+            }
 
-  function openEdit(m: PaymentMethod) {
-    setForm({
-      name: m.name,
-      type: m.type,
-      is_active: m.is_active,
-      sort_order: m.sort_order,
-      config: m.config || {},
-    })
-    setEditId(m.id)
-    setShowForm(true)
-  }
+            const methods = Array.isArray(data.methods) ? (data.methods as PaymentMethod[]) : []
+            const korapayMethod = methods.find((method) => method.type === "korapay") || null
+            const nonKorapayMethods = methods.filter((method) => method.type !== "korapay")
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    
-    if (!form.name || !form.type) {
-      toast.error("Name and type are required")
-      return
+            setLegacyMethodCount(nonKorapayMethods.length)
+            setKorapayMethodId(korapayMethod?.id ?? null)
+
+            if (korapayMethod) {
+                setForm({
+                    name: korapayMethod.name || "Korapay",
+                    is_active: korapayMethod.is_active,
+                    sort_order: Number(korapayMethod.sort_order ?? 0),
+                    displayName: String(korapayMethod.config?.displayName || korapayMethod.name || "Korapay"),
+                    description: String(
+                        korapayMethod.config?.description || "Secure Korapay checkout for wallet top-ups."
+                    ),
+                })
+            } else {
+                setForm(defaultForm)
+            }
+        } catch (error) {
+            console.error("[Admin Payment Setup] Load error:", error)
+            toast.error(error instanceof Error ? error.message : "Failed to load payment setup")
+        } finally {
+            setLoading(false)
+        }
     }
 
-    setSaving(true)
+    async function handleSubmit(event: React.FormEvent) {
+        event.preventDefault()
 
-    try {
-      let res
-      
-      if (editId) {
-        // Use PUT for update
-        res = await fetch(`/api/admin/payment-methods/${editId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        })
-      } else {
-        // Use POST for create
-        res = await fetch("/api/admin/payment-methods", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        })
-      }
+        if (!form.name.trim()) {
+            toast.error("Korapay name is required")
+            return
+        }
 
-      const data = await res.json()
+        setSaving(true)
 
-      if (res.ok) {
-        toast.success(editId ? "Payment method updated" : "Payment method created")
-        setShowForm(false)
-        fetchMethods()
-      } else {
-        toast.error(data.error || "Failed to save")
-      }
-    } catch (error) {
-      console.error("Save error:", error)
-      toast.error("Failed to save payment method")
-    } finally {
-      setSaving(false)
+        try {
+            const payload = {
+                name: form.name.trim(),
+                type: "korapay",
+                is_active: form.is_active,
+                sort_order: Number(form.sort_order || 0),
+                config: {
+                    displayName: form.displayName.trim() || form.name.trim(),
+                    description: form.description.trim(),
+                },
+            }
+
+            const response = korapayMethodId
+                ? await fetch(`/api/admin/payment-methods/${korapayMethodId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                })
+                : await fetch("/api/admin/payment-methods", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                })
+
+            const data = await response.json()
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to save Korapay setup")
+            }
+
+            toast.success("Korapay payment setup saved")
+            await fetchSetup()
+        } catch (error) {
+            console.error("[Admin Payment Setup] Save error:", error)
+            toast.error(error instanceof Error ? error.message : "Failed to save payment setup")
+        } finally {
+            setSaving(false)
+        }
     }
-  }
 
-  async function handleDelete(id: number) {
-    if (!window.confirm("Are you sure you want to delete this payment method?")) return
-
-    try {
-      const res = await fetch(`/api/admin/payment-methods/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        toast.success("Payment method deleted")
-        fetchMethods()
-      } else {
-        toast.error(data.error || "Failed to delete")
-      }
-    } catch (error) {
-      console.error("Delete error:", error)
-      toast.error("Failed to delete payment method")
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
+            </div>
+        )
     }
-  }
 
-  if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Payment Methods</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Configure payment options for buyers
-          </p>
-        </div>
-        <Button
-          onClick={openAdd}
-          className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
-        >
-          <Plus className="h-4 w-4" />
-          Add Method
-        </Button>
-      </div>
-
-      {/* Methods List */}
-      <div className="grid gap-3">
-        {methods.length === 0 ? (
-          <div className="rounded-lg border border-border bg-muted/50 p-8 text-center">
-            <p className="text-muted-foreground">No payment methods configured</p>
-          </div>
-        ) : (
-          methods.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-foreground">{m.name}</h3>
-                  <span className="rounded-md bg-muted px-2 py-1 text-xs font-mono text-muted-foreground">
-                    {m.type}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Order: {m.sort_order}
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-foreground">Payment Setup</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Korapay handles wallet top-ups. Product purchases are always deducted from buyer balance.
                 </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    m.is_active
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  {m.is_active ? "Active" : "Inactive"}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEdit(m)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(m.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editId ? "Edit Payment Method" : "New Payment Method"}
-              </h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-foreground">Name *</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Korapay, Paystack"
-                  required
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
-                />
-              </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="mb-4 flex items-start gap-3">
+                        <div className="rounded-xl bg-[#38bdf8]/10 p-3 text-[#0284c7]">
+                            <Wallet className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-foreground">Purchase Flow</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                All orders complete from wallet balance only. Buyers must top up before checkout when funds are insufficient.
+                            </p>
+                        </div>
+                    </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-foreground">Type *</label>
-                <input
-                  type="text"
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value.toLowerCase() })}
-                  placeholder="e.g. korapay, paystack"
-                  required
-                  disabled={!!editId}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none disabled:opacity-50"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-foreground">Sort Order</label>
-                  <input
-                    type="number"
-                    value={form.sort_order}
-                    onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
-                  />
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-700">
+                        Balance purchases are completed instantly and credentials are delivered immediately after deduction.
+                    </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                    className="h-4 w-4 rounded border-border accent-[#38bdf8]"
-                  />
-                  Active
-                </label>
-              </div>
+                <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="mb-4 flex items-start gap-3">
+                        <div className="rounded-xl bg-[#38bdf8]/10 p-3 text-[#0284c7]">
+                            <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-foreground">Gateway Policy</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Korapay is the only gateway exposed in the admin dashboard for wallet funding.
+                            </p>
+                        </div>
+                    </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save"
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
+                    {legacyMethodCount > 0 ? (
+                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-700">
+                            {legacyMethodCount} legacy payment method{legacyMethodCount === 1 ? " is" : "s are"} still stored in the database, but checkout no longer uses them.
+                        </div>
+                    ) : (
+                        <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                            No legacy payment methods detected.
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border bg-card p-6">
+                <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-[#38bdf8]/10 p-3 text-[#0284c7]">
+                        <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-foreground">Korapay Top-up Setup</h2>
+                        <p className="text-sm text-muted-foreground">
+                            This saves the single Korapay method label used for wallet funding flows.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-foreground">Method Name</label>
+                        <input
+                            type="text"
+                            value={form.name}
+                            onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
+                            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-foreground">Display Name</label>
+                        <input
+                            type="text"
+                            value={form.displayName}
+                            onChange={(event) => setForm((previous) => ({ ...previous, displayName: event.target.value }))}
+                            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-foreground">Description</label>
+                    <textarea
+                        value={form.description}
+                        onChange={(event) => setForm((previous) => ({ ...previous, description: event.target.value }))}
+                        rows={3}
+                        className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                    />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-foreground">Sort Order</label>
+                        <input
+                            type="number"
+                            value={form.sort_order}
+                            onChange={(event) => setForm((previous) => ({ ...previous, sort_order: parseInt(event.target.value) || 0 }))}
+                            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
+                        />
+                    </div>
+
+                    <label className="flex items-center gap-2 self-end text-sm text-foreground">
+                        <input
+                            type="checkbox"
+                            checked={form.is_active}
+                            onChange={(event) => setForm((previous) => ({ ...previous, is_active: event.target.checked }))}
+                            className="h-4 w-4 rounded border-border accent-[#38bdf8]"
+                        />
+                        Enable Korapay top-ups
+                    </label>
+                </div>
+
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={saving} className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Save Setup
+                    </Button>
+                </div>
             </form>
-          </div>
         </div>
-      )}
-    </div>
-  )
+    )
 }
