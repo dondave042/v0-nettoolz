@@ -10,7 +10,6 @@ import { CartDrawer } from "@/components/cart-drawer"
 import { toast } from "sonner"
 
 const navLinks = [
-  { label: "Home", href: "/" },
   { label: "Shop", href: "/shop" },
   { label: "Orders", href: "/orders" },
   { label: "Wallet", href: "/wallet" },

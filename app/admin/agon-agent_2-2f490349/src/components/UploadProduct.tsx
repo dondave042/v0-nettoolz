@@ -22,8 +22,66 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
     const [price, setPrice] = useState("")
     const [description, setDescription] = useState("")
     const [imageUrls, setImageUrls] = useState("")
+    const [uploadingImage, setUploadingImage] = useState(false)
+    const [uploadError, setUploadError] = useState("")
+    const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
     const [accounts, setAccounts] = useState<Omit<Account, "id">[]>([{ ...emptyAccount }])
     const [submitted, setSubmitted] = useState(false)
+
+    async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+        const selectedFile = event.target.files?.[0]
+        if (!selectedFile) return
+
+        setUploadError("")
+        setUploadingImage(true)
+
+        try {
+            const payload = new FormData()
+            payload.append("file", selectedFile)
+
+            const response = await fetch("/api/admin/products/upload-image", {
+                method: "POST",
+                body: payload,
+            })
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}))
+                throw new Error(data.error || "Failed to upload image")
+            }
+
+            const data = await response.json()
+            const uploadedUrl = String(data.url || "")
+
+            if (!uploadedUrl) {
+                throw new Error("Upload succeeded but no image URL was returned")
+            }
+
+            setUploadedImageUrls((previous) => [...previous, uploadedUrl])
+            setImageUrls((previous) => {
+                const trimmed = previous.trim()
+                return trimmed ? `${trimmed}\n${uploadedUrl}` : uploadedUrl
+            })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to upload image"
+            setUploadError(message)
+        } finally {
+            setUploadingImage(false)
+            event.target.value = ""
+        }
+    }
+
+    function removeImage(urlToRemove: string) {
+        setUploadedImageUrls((previous) => previous.filter((url) => url !== urlToRemove))
+        setImageUrls((previous) => {
+            const remaining = previous
+                .split(/\r?\n|,/)
+                .map((entry) => entry.trim())
+                .filter(Boolean)
+                .filter((entry) => entry !== urlToRemove)
+
+            return remaining.join("\n")
+        })
+    }
 
     function addAccount() {
         setAccounts((previous) => [...previous, { ...emptyAccount }])
@@ -69,6 +127,8 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
             setPrice("")
             setDescription("")
             setImageUrls("")
+            setUploadedImageUrls([])
+            setUploadError("")
             setAccounts([{ ...emptyAccount }])
         } catch (error) {
             console.error("[UploadProduct] Failed to add product:", error)
@@ -118,6 +178,43 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
                         className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white md:col-span-2"
                         rows={3}
                     />
+                    <div className="rounded-xl border border-dashed border-slate-700 bg-slate-800/30 p-4 md:col-span-2">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-white">Upload Product Image</p>
+                                <p className="text-xs text-slate-400">Supported: JPG, PNG, WEBP, GIF (max 5MB)</p>
+                            </div>
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/15 px-4 py-2 text-sm font-medium text-cyan-300 hover:bg-cyan-500/25">
+                                <Plus className="h-4 w-4" />
+                                {uploadingImage ? "Uploading..." : "Choose Image"}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    disabled={uploadingImage}
+                                />
+                            </label>
+                        </div>
+                        {uploadError && <p className="mt-3 text-sm text-red-300">{uploadError}</p>}
+                        {uploadedImageUrls.length > 0 && (
+                            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                                {uploadedImageUrls.map((url) => (
+                                    <div key={url} className="relative overflow-hidden rounded-lg border border-slate-700 bg-slate-900/50">
+                                        <img src={url} alt="Uploaded product" className="h-24 w-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(url)}
+                                            className="absolute right-1 top-1 rounded-md bg-slate-950/80 p-1 text-slate-200 hover:text-red-300"
+                                            aria-label="Remove uploaded image"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

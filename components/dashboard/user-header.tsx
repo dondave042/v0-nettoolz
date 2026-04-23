@@ -1,4 +1,4 @@
- "use client"
+"use client"
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -52,10 +52,7 @@ export function UserHeader({ onMenuToggle, userName = "Guest", userBalance = 0 }
 
             {/* Center: Navigation (Desktop only) */}
             <nav className="hidden lg:flex items-center gap-6 text-sm">
-              <Link href="/" className="text-muted-foreground hover:text-[#38bdf8] transition-colors">
-                Home
-              </Link>
-              <Link href="/#products" className="text-muted-foreground hover:text-[#38bdf8] transition-colors">
+              <Link href="/shop" className="text-muted-foreground hover:text-[#38bdf8] transition-colors">
                 Shop
               </Link>
               <Link href="/my-purchases" className="text-muted-foreground hover:text-[#38bdf8] transition-colors">
