@@ -42,6 +42,6 @@ export interface DashboardStats {
     lowStockProducts: number
 }
 
-export type AdminTab = "dashboard" | "products" | "upload" | "analytics" | "settings"
+export type AdminTab = "dashboard" | "products" | "upload" | "analytics" | "users" | "settings"
 
 export type Platform = Product["platform"]
