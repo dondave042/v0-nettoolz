@@ -16,6 +16,7 @@ export interface Product {
     quantity: number
     status: "active" | "inactive" | "sold_out"
     image?: string
+    images?: string[]
     description: string
     accounts: Account[]
     createdAt: Date

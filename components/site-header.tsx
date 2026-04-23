@@ -112,6 +112,13 @@ export function SiteHeader() {
           {/* Auth Buttons */}
           {!loading && (
             <div className="hidden items-center gap-2 md:flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/admin/login')}
+              >
+                Admin
+              </Button>
               {buyer ? (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Welcome, {buyer.name}</span>
@@ -219,6 +226,13 @@ export function SiteHeader() {
                   </>
                 ) : (
                   <>
+                    <Link
+                      href="/admin/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                    >
+                      Admin
+                    </Link>
                     <Link
                       href="/login"
                       onClick={() => setMobileOpen(false)}

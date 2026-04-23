@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
-import { getSession } from "@/lib/auth"
+import { getAdminSession } from "@/lib/admin-auth"
+
+const rolesAllowedToManageCatalog = new Set([
+  "admin",
+  "super_admin",
+  "editor",
+  "manager",
+  "support",
+])
+
+function canManageCatalog(role?: string) {
+  if (!role) {
+    return true
+  }
+
+  return rolesAllowedToManageCatalog.has(role)
+}
 
 export async function GET() {
-  const session = await getSession()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const sql = getDb()
@@ -17,8 +33,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!canManageCatalog(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   try {
     const body = await request.json()
@@ -38,8 +57,11 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const session = await getSession()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!canManageCatalog(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   try {
     const body = await request.json()
@@ -66,8 +88,11 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getSession()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!canManageCatalog(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   try {
     const { searchParams } = new URL(request.url)

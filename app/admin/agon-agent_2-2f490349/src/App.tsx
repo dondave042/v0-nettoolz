@@ -1,14 +1,70 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Dashboard from "./components/Dashboard"
 import Analytics from "./components/Analytics"
 import ProductsTable from "./components/ProductsTable"
 import Settings from "./components/Settings"
 import Sidebar from "./components/Sidebar"
 import UploadProduct from "./components/UploadProduct"
-import { mockProducts } from "./data/mockData"
 import { AdminTab, Product } from "./types"
+
+type ApiProduct = {
+    id: number
+    sku: string
+    name: string
+    description: string
+    price: string | number
+    available_qty: number
+    badge?: string | null
+    is_featured?: boolean | null
+    category_name?: string | null
+    images?: string[] | null
+    product_username?: string | null
+    product_password?: string | null
+}
+
+function mapPlatform(categoryName?: string | null) {
+    const value = (categoryName || "").toLowerCase()
+    if (value.includes("instagram")) return "instagram"
+    if (value.includes("facebook")) return "facebook"
+    if (value.includes("twitter") || value.includes("x")) return "twitter"
+    if (value.includes("tiktok")) return "tiktok"
+    if (value.includes("youtube")) return "youtube"
+    if (value.includes("linkedin")) return "linkedin"
+    if (value.includes("telegram")) return "telegram"
+    return "other"
+}
+
+function toDashboardProduct(entry: ApiProduct): Product {
+    const hasCredentials = Boolean(entry.product_username || entry.product_password)
+    const credentials = hasCredentials
+        ? [{
+            id: `${entry.id}-credentials`,
+            username: entry.product_username || "",
+            password: entry.product_password || "",
+            status: "available" as const,
+        }]
+        : []
+
+    const quantity = Number(entry.available_qty || 0)
+
+    return {
+        id: String(entry.id),
+        name: entry.name,
+        platform: mapPlatform(entry.category_name),
+        category: entry.category_name || "Uncategorized",
+        price: Number(entry.price || 0),
+        quantity,
+        status: quantity > 0 ? "active" : "sold_out",
+        image: entry.images?.[0],
+        images: entry.images || [],
+        description: entry.description || "",
+        accounts: credentials,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    }
+}
 
 interface AppProps {
     initialTab?: AdminTab
@@ -16,14 +72,67 @@ interface AppProps {
 
 export default function App({ initialTab = "dashboard" }: AppProps) {
     const [activeTab, setActiveTab] = useState<AdminTab>(initialTab)
-    const [products, setProducts] = useState<Product[]>(mockProducts)
+    const [products, setProducts] = useState<Product[]>([])
 
-    const handleAddProduct = (product: Product) => {
-        setProducts((previous) => [product, ...previous])
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await fetch("/api/admin/products", { cache: "no-store" })
+                if (!response.ok) {
+                    return
+                }
+
+                const payload = await response.json()
+                const list = Array.isArray(payload) ? payload : []
+                setProducts(list.map((entry: ApiProduct) => toDashboardProduct(entry)))
+            } catch (error) {
+                console.error("[Admin Dashboard] Failed to fetch products:", error)
+            }
+        }
+
+        fetchProducts()
+    }, [])
+
+    const handleAddProduct = async (product: Product) => {
+        const skuPrefix = product.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase() || "PROD"
+        const payload = {
+            sku: `${skuPrefix}-${Date.now()}`,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            available_qty: product.quantity,
+            category_id: null,
+            badge: null,
+            is_featured: false,
+            images: product.images || (product.image ? [product.image] : []),
+            product_username: product.accounts[0]?.username || null,
+            product_password: product.accounts[0]?.password || null,
+        }
+
+        const response = await fetch("/api/admin/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to save product to website")
+        }
+
+        const created = await response.json()
+        setProducts((previous) => [toDashboardProduct(created as ApiProduct), ...previous])
         setActiveTab("products")
     }
 
-    const handleDeleteProduct = (id: string) => {
+    const handleDeleteProduct = async (id: string) => {
+        const response = await fetch(`/api/admin/products?id=${id}`, {
+            method: "DELETE",
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to delete product")
+        }
+
         setProducts((previous) => previous.filter((product) => product.id !== id))
     }
 

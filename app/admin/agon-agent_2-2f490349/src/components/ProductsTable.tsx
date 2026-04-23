@@ -5,7 +5,7 @@ import { Platform, Product } from "../types"
 
 interface ProductsTableProps {
     products: Product[]
-    onDeleteProduct: (id: string) => void
+    onDeleteProduct: (id: string) => Promise<void> | void
     onUpdateProduct: (product: Product) => void
 }
 
@@ -31,6 +31,15 @@ export default function ProductsTable({ products, onDeleteProduct }: ProductsTab
             product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             product.category.toLowerCase().includes(searchQuery.toLowerCase())
     )
+
+    async function handleDeleteProduct(id: string, event: React.MouseEvent<HTMLButtonElement>) {
+        event.stopPropagation()
+        try {
+            await onDeleteProduct(id)
+        } catch (error) {
+            console.error("[ProductsTable] Failed to delete product:", error)
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -74,7 +83,7 @@ export default function ProductsTable({ products, onDeleteProduct }: ProductsTab
                                 <button className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-cyan-400">
                                     <Edit3 className="h-4 w-4" />
                                 </button>
-                                <button onClick={(event) => { event.stopPropagation(); onDeleteProduct(product.id) }} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400">
+                                <button onClick={(event) => handleDeleteProduct(product.id, event)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400">
                                     <Trash2 className="h-4 w-4" />
                                 </button>
                             </div>

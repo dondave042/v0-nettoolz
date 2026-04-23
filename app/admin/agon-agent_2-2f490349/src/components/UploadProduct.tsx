@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Account, Platform, Product } from "../types"
 
 interface UploadProductProps {
-    onAddProduct: (product: Product) => void
+    onAddProduct: (product: Product) => Promise<void> | void
 }
 
 const emptyAccount: Omit<Account, "id"> = {
@@ -21,6 +21,7 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
     const [platform, setPlatform] = useState<Platform>("instagram")
     const [price, setPrice] = useState("")
     const [description, setDescription] = useState("")
+    const [imageUrls, setImageUrls] = useState("")
     const [accounts, setAccounts] = useState<Omit<Account, "id">[]>([{ ...emptyAccount }])
     const [submitted, setSubmitted] = useState(false)
 
@@ -37,8 +38,14 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
         setAccounts((previous) => previous.map((account, currentIndex) => (currentIndex === index ? { ...account, [field]: value } : account)))
     }
 
-    function handleSubmit(event: React.FormEvent) {
+    async function handleSubmit(event: React.FormEvent) {
         event.preventDefault()
+
+        const parsedImages = imageUrls
+            .split(/\r?\n|,/)
+            .map((entry) => entry.trim())
+            .filter(Boolean)
+
         const product: Product = {
             id: `${Date.now()}`,
             name: productName,
@@ -47,19 +54,26 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
             price: Number(price || 0),
             quantity: accounts.length,
             description,
+            images: parsedImages,
             status: "active",
             createdAt: new Date(),
             updatedAt: new Date(),
             accounts: accounts.map((account, index) => ({ ...account, id: `${Date.now()}-${index}` })),
         }
-        onAddProduct(product)
-        setSubmitted(true)
-        setProductName("")
-        setCategory("")
-        setPlatform("instagram")
-        setPrice("")
-        setDescription("")
-        setAccounts([{ ...emptyAccount }])
+        try {
+            await onAddProduct(product)
+            setSubmitted(true)
+            setProductName("")
+            setCategory("")
+            setPlatform("instagram")
+            setPrice("")
+            setDescription("")
+            setImageUrls("")
+            setAccounts([{ ...emptyAccount }])
+        } catch (error) {
+            console.error("[UploadProduct] Failed to add product:", error)
+            setSubmitted(false)
+        }
     }
 
     return (
@@ -73,7 +87,7 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
                 <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-green-300">
                     <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-5 w-5" />
-                        Product added to the local agon dashboard state.
+                        Product published to the website catalog.
                     </div>
                 </div>
             )}
@@ -97,6 +111,13 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
                     </select>
                     <input value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Price" className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white" required />
                     <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description" className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white md:col-span-2" rows={3} />
+                    <textarea
+                        value={imageUrls}
+                        onChange={(event) => setImageUrls(event.target.value)}
+                        placeholder="Photo URLs (comma or newline separated)"
+                        className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white md:col-span-2"
+                        rows={3}
+                    />
                 </div>
             </div>
 
