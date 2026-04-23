@@ -20,11 +20,23 @@ function loadEnvFile(fileName) {
 }
 
 async function main() {
-    loadEnvFile('.env.production.local')
+    const preferredEnvFiles = ['.env.production.local', '.env.local']
+    let loadedFrom = null
+
+    for (const envFile of preferredEnvFiles) {
+        const envPath = path.join(process.cwd(), envFile)
+        if (fs.existsSync(envPath)) {
+            loadEnvFile(envFile)
+            loadedFrom = envFile
+            if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
+                break
+            }
+        }
+    }
 
     const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL
     if (!connectionString) {
-        throw new Error('DATABASE_URL/POSTGRES_URL not found in .env.production.local')
+        throw new Error('DATABASE_URL/POSTGRES_URL not found in .env.production.local or .env.local')
     }
 
     const sql = neon(connectionString)
@@ -36,6 +48,7 @@ async function main() {
     console.log(
         JSON.stringify(
             {
+                envFile: loadedFrom,
                 before: before[0]?.count ?? 0,
                 deletedRows: deleted.length,
                 after: after[0]?.count ?? 0,
