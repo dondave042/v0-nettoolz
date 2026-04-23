@@ -7,6 +7,7 @@ import ProductsTable from "./components/ProductsTable"
 import Settings from "./components/Settings"
 import Sidebar from "./components/Sidebar"
 import UploadProduct from "./components/UploadProduct"
+import { mockProducts } from "./data/mockData"
 import { AdminTab, Product } from "./types"
 
 type ApiProduct = {
@@ -22,6 +23,12 @@ type ApiProduct = {
     images?: string[] | null
     product_username?: string | null
     product_password?: string | null
+}
+
+type ApiCategory = {
+    id: number
+    name: string
+    slug?: string
 }
 
 function mapPlatform(categoryName?: string | null) {
@@ -66,6 +73,35 @@ function toDashboardProduct(entry: ApiProduct): Product {
     }
 }
 
+function findCategoryId(categories: ApiCategory[], product: Product) {
+    const byName = categories.find((category) => category.name.toLowerCase() === product.category.toLowerCase())
+    if (byName) return byName.id
+
+    const slug = product.category.toLowerCase().replace(/\s+/g, "-")
+    const bySlug = categories.find((category) => (category.slug || "").toLowerCase() === slug)
+    if (bySlug) return bySlug.id
+
+    return null
+}
+
+function buildProductPayload(product: Product, categoryId: number | null) {
+    const skuPrefix = product.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase() || "PROD"
+
+    return {
+        sku: `${skuPrefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        available_qty: product.quantity,
+        category_id: categoryId,
+        badge: null,
+        is_featured: false,
+        images: product.images || (product.image ? [product.image] : []),
+        product_username: product.accounts[0]?.username || null,
+        product_password: product.accounts[0]?.password || null,
+    }
+}
+
 interface AppProps {
     initialTab?: AdminTab
 }
@@ -77,13 +113,47 @@ export default function App({ initialTab = "dashboard" }: AppProps) {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await fetch("/api/admin/products", { cache: "no-store" })
-                if (!response.ok) {
+                const [productsResponse, categoriesResponse] = await Promise.all([
+                    fetch("/api/admin/products", { cache: "no-store" }),
+                    fetch("/api/admin/categories", { cache: "no-store" }),
+                ])
+
+                if (!productsResponse.ok) {
                     return
                 }
 
-                const payload = await response.json()
-                const list = Array.isArray(payload) ? payload : []
+                const productsPayload = await productsResponse.json()
+                const apiProducts: ApiProduct[] = Array.isArray(productsPayload) ? productsPayload : []
+                const categoriesPayload = categoriesResponse.ok ? await categoriesResponse.json() : []
+                const categories: ApiCategory[] = Array.isArray(categoriesPayload) ? categoriesPayload : []
+
+                const existingProductNames = new Set(apiProducts.map((entry) => entry.name.toLowerCase()))
+                const missingProducts = mockProducts.filter(
+                    (product) => !existingProductNames.has(product.name.toLowerCase())
+                )
+
+                for (const product of missingProducts) {
+                    const createResponse = await fetch("/api/admin/products", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(buildProductPayload(product, findCategoryId(categories, product))),
+                    })
+
+                    if (!createResponse.ok) {
+                        const text = await createResponse.text()
+                        console.error("[Admin Dashboard] Failed syncing product:", product.name, text)
+                    }
+                }
+
+                const finalProductsResponse = missingProducts.length > 0
+                    ? await fetch("/api/admin/products", { cache: "no-store" })
+                    : productsResponse
+
+                const finalPayload = missingProducts.length > 0
+                    ? await finalProductsResponse.json()
+                    : productsPayload
+
+                const list = Array.isArray(finalPayload) ? finalPayload : []
                 setProducts(list.map((entry: ApiProduct) => toDashboardProduct(entry)))
             } catch (error) {
                 console.error("[Admin Dashboard] Failed to fetch products:", error)
@@ -94,20 +164,10 @@ export default function App({ initialTab = "dashboard" }: AppProps) {
     }, [])
 
     const handleAddProduct = async (product: Product) => {
-        const skuPrefix = product.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase() || "PROD"
-        const payload = {
-            sku: `${skuPrefix}-${Date.now()}`,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            available_qty: product.quantity,
-            category_id: null,
-            badge: null,
-            is_featured: false,
-            images: product.images || (product.image ? [product.image] : []),
-            product_username: product.accounts[0]?.username || null,
-            product_password: product.accounts[0]?.password || null,
-        }
+        const categoriesResponse = await fetch("/api/admin/categories", { cache: "no-store" })
+        const categoriesPayload = categoriesResponse.ok ? await categoriesResponse.json() : []
+        const categories: ApiCategory[] = Array.isArray(categoriesPayload) ? categoriesPayload : []
+        const payload = buildProductPayload(product, findCategoryId(categories, product))
 
         const response = await fetch("/api/admin/products", {
             method: "POST",
