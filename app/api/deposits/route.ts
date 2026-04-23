@@ -47,12 +47,20 @@ async function initializeKorapayCharge(
 ): Promise<KorapayInitResult> {
     const normalizedBase = apiBaseUrl.replace(/\/$/, '')
     const strippedBase = normalizedBase.replace(/\/api\/v1$/, '')
-    const baseCandidates = Array.from(new Set([normalizedBase, strippedBase]))
+    const fallbackBases = [
+        'https://api.korapay.com/merchant/api/v1',
+        'https://api.korapay.com',
+    ]
+    const baseCandidates = Array.from(
+        new Set([normalizedBase, strippedBase, ...fallbackBases].map((value) => value.replace(/\/$/, '')))
+    )
     const endpointCandidates = [
         '/checkout/initialize',
         '/charges/initialize',
         '/api/v1/checkout/initialize',
         '/api/v1/charges/initialize',
+        '/merchant/api/v1/checkout/initialize',
+        '/merchant/api/v1/charges/initialize',
     ]
     let lastResult: KorapayInitResult | null = null
 
@@ -169,6 +177,14 @@ export async function POST(request: Request) {
         const referenceId = `DEP-${buyer.id}-${Date.now()}`
         const normalizedEmail = String(buyer.email || '').trim().toLowerCase()
         const normalizedName = String(buyer.name || '').trim() || 'Customer'
+        const apiKeyCandidates = Array.from(
+            new Set(
+                [
+                    config.korapayApiKeySecret,
+                    process.env.KORAPAY_SECRET_KEY,
+                ].filter((value): value is string => Boolean(value && value.trim()))
+            )
+        )
 
         await createPendingDeposit(sql, {
             buyerId: buyer.id,
@@ -217,31 +233,48 @@ export async function POST(request: Request) {
         ]
 
         let selectedResult: KorapayInitResult | null = null
+        let lastFailure: KorapayInitResult | null = null
         const attemptErrors: Array<{ index: number; status: number; message: string; endpoint?: string }> = []
 
-        for (let i = 0; i < attempts.length; i++) {
-            const result = await initializeKorapayCharge(
-                config.korapayApiBaseUrl,
-                config.korapayApiKeySecret,
-                attempts[i]
-            )
+        for (let keyIndex = 0; keyIndex < apiKeyCandidates.length; keyIndex++) {
+            const apiKey = apiKeyCandidates[keyIndex]
 
-            if (result.ok) {
-                selectedResult = result
-                break
+            for (let i = 0; i < attempts.length; i++) {
+                const result = await initializeKorapayCharge(
+                    config.korapayApiBaseUrl,
+                    apiKey,
+                    attempts[i]
+                )
+
+                if (result.ok) {
+                    selectedResult = result
+                    break
+                }
+
+                lastFailure = result
+                attemptErrors.push({
+                    index: i + 1,
+                    status: result.status,
+                    message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
+                    endpoint: result.endpoint,
+                })
+
+                const isInputIssue = looksLikeInputValidationError(result.payload)
+                const isAuthFailure = result.status === 401 || result.status === 403
+
+                if (isAuthFailure) {
+                    // Try the next configured API key when auth fails.
+                    break
+                }
+
+                if (!isInputIssue && result.status >= 400 && result.status < 500) {
+                    // Stop retrying on clear client errors that are not input-shape issues.
+                    selectedResult = result
+                    break
+                }
             }
 
-            attemptErrors.push({
-                index: i + 1,
-                status: result.status,
-                message: String(result.payload?.message || result.payload?.error || 'Initialization failed'),
-                endpoint: result.endpoint,
-            })
-
-            const isInputIssue = looksLikeInputValidationError(result.payload)
-            if (!isInputIssue && result.status >= 400 && result.status < 500) {
-                // Stop retrying on clear client/auth errors that are not input-shape issues.
-                selectedResult = result
+            if (selectedResult) {
                 break
             }
         }
@@ -249,23 +282,44 @@ export async function POST(request: Request) {
         if (!selectedResult || !selectedResult.ok) {
             await setDepositStatus(sql, referenceId, 'failed', 'reference_id')
 
-            const finalMessage = selectedResult?.payload?.message || selectedResult?.payload?.error || 'Failed to initialize top-up payment'
+            const failedResult = selectedResult || lastFailure
+            const rawMessage = failedResult?.payload?.message || failedResult?.payload?.error
+            const statusCode = failedResult?.status || 502
+            const finalMessage = rawMessage || (
+                statusCode === 401 || statusCode === 403
+                    ? 'Payment provider authentication failed. Please verify Korapay secret keys.'
+                    : statusCode === 404
+                        ? 'Payment provider endpoint was not found. Please verify Korapay API base URL.'
+                        : statusCode >= 500
+                            ? 'Payment provider is temporarily unavailable. Please try again shortly.'
+                            : 'Failed to initialize top-up payment'
+            )
+
+            console.error('[Deposits] Korapay initialization failed:', {
+                referenceId,
+                attempts: attemptErrors,
+            })
 
             return NextResponse.json(
                 {
                     error: finalMessage,
-                    details: process.env.NODE_ENV === 'development' ? attemptErrors : undefined,
+                    details: attemptErrors.length > 0 ? attemptErrors.slice(-3) : undefined,
                 },
-                { status: selectedResult?.status || 502 }
+                { status: failedResult?.status || 502 }
             )
         }
 
         const responsePayload = selectedResult.payload
+        const checkoutUrl =
+            responsePayload.data?.checkout_url ||
+            responsePayload.data?.payment_url ||
+            responsePayload.checkout_url
 
         return NextResponse.json({
             success: true,
             reference_id: referenceId,
-            checkout_url: responsePayload.data?.checkout_url || responsePayload.data?.payment_url || responsePayload.checkout_url,
+            checkout_url: checkoutUrl,
+            checkoutUrl,
             amount: parsedAmount,
             currency: depositCurrency,
         })
