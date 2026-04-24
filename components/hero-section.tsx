@@ -12,7 +12,7 @@ export function HeroSection() {
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
-        <div className="flex flex-col items-center gap-16 lg:gap-12">
+        <div className="flex flex-col items-center">
           {/* Text content */}
           <div className="max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
@@ -62,18 +62,6 @@ export function HeroSection() {
                   {label}
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Hero image / logo */}
-          <div className="flex-shrink-0">
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-full bg-[#38bdf8]/20 blur-2xl" />
-              <img
-                src="/images/logo.png"
-                alt="NETTOOLZ Premium Web Logs"
-                className="relative h-80 w-80 drop-shadow-2xl"
-              />
             </div>
           </div>
         </div>
