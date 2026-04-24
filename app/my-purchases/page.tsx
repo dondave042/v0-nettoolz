@@ -8,30 +8,31 @@ import { Button } from "@/components/ui/button"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { toast } from "sonner"
 
+interface Credential {
+  id: number | null
+  username: string | null
+  password: string | null
+}
+
 interface Order {
   id: number
   product_id: number
   product_name: string
   quantity: number
   total_price: string
-  status: string
+  status?: string
   payment_method_name: string
   created_at: string
   payment_status: string
   payment_reference_id?: string
   payment_error_message?: string
-}
-
-interface Credential {
-  id: number
-  username: string
-  password: string
+  credential_count?: number
+  credentials: Credential[]
 }
 
 export default function MyPurchasesPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
-  const [credentials, setCredentials] = useState<{ [key: number]: Credential[] }>({})
   const [loading, setLoading] = useState(true)
   const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({})
 
@@ -48,7 +49,7 @@ export default function MyPurchasesPage() {
       }
 
       if (res.ok) {
-        fetchOrders()
+        await fetchOrders()
       }
     } catch (error) {
       console.error("Auth check error:", error)
@@ -59,17 +60,10 @@ export default function MyPurchasesPage() {
   async function fetchOrders() {
     setLoading(true)
     try {
-      const res = await fetch("/api/checkout")
+      const res = await fetch("/api/orders")
       if (res.ok) {
         const data = await res.json()
         setOrders(data.orders || [])
-
-        // Fetch credentials for each order that has completed payment
-        for (const order of data.orders || []) {
-          if (order.payment_status === "completed") {
-            fetchOrderCredentials(order.id, order.product_id)
-          }
-        }
       } else if (res.status === 401) {
         router.push("/login")
       }
@@ -78,21 +72,6 @@ export default function MyPurchasesPage() {
       toast.error("Failed to load orders")
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function fetchOrderCredentials(orderId: number, productId: number) {
-    try {
-      const res = await fetch(`/api/products/${productId}/credentials`)
-      if (res.ok) {
-        const data = await res.json()
-        setCredentials((prev) => ({
-          ...prev,
-          [orderId]: [data],
-        }))
-      }
-    } catch (error) {
-      console.error("Fetch credentials error:", error)
     }
   }
 
@@ -171,72 +150,75 @@ export default function MyPurchasesPage() {
               }
               const status = statusConfig[order.payment_status as keyof typeof statusConfig] || statusConfig.pending
               const StatusIcon = status.icon
-              
+
               return (
-              <div key={order.id} className="group rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden">
-                {/* Order Header */}
-                <div className="border-b border-border bg-gradient-to-r from-secondary/30 to-transparent p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`rounded-lg p-2.5 ${status.color}`}>
-                        <StatusIcon className="h-5 w-5" />
+                <div key={order.id} className="group rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden">
+                  {/* Order Header */}
+                  <div className="border-b border-border bg-gradient-to-r from-secondary/30 to-transparent p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`rounded-lg p-2.5 ${status.color}`}>
+                          <StatusIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Order #{order.id}</p>
+                          <p className="text-sm font-semibold text-foreground">{order.product_name}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-[#38bdf8]">
+                          ₦{parseFloat(order.total_price).toLocaleString()}
+                        </p>
+                        <p className={`inline-block mt-1 rounded-full px-3 py-1 text-xs font-medium ${status.color}`}>
+                          {status.label}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-3 text-sm">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">Payment Method</p>
+                        <p className="mt-0.5 font-medium text-foreground">{order.payment_method_name}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground">Order #{order.id}</p>
-                        <p className="text-sm font-semibold text-foreground">{order.product_name}</p>
+                        <p className="text-xs font-medium text-muted-foreground">Quantity</p>
+                        <p className="mt-0.5 font-medium text-foreground">{order.quantity} unit(s)</p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-[#38bdf8]">
-                        ₦{parseFloat(order.total_price).toLocaleString()}
-                      </p>
-                      <p className={`inline-block mt-1 rounded-full px-3 py-1 text-xs font-medium ${status.color}`}>
-                        {status.label}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-3 text-sm">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Payment Method</p>
-                      <p className="mt-0.5 font-medium text-foreground">{order.payment_method_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Quantity</p>
-                      <p className="mt-0.5 font-medium text-foreground">{order.quantity} unit(s)</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Purchased</p>
-                      <p className="mt-0.5 font-medium text-foreground">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-
-                {/* Payment Error Message */}
-                {order.payment_status === "failed" && order.payment_error_message && (
-                  <div className="border-t border-border bg-red-50 dark:bg-red-900/20 p-5">
-                    <div className="flex gap-3">
-                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-semibold text-red-900 dark:text-red-100">Payment Failed</p>
-                        <p className="text-sm text-red-800 dark:text-red-200 mt-1">{order.payment_error_message}</p>
-                        <p className="text-xs text-red-700 dark:text-red-300 mt-2">Please try placing a new order to complete your purchase.</p>
+                        <p className="text-xs font-medium text-muted-foreground">Purchased</p>
+                        <p className="mt-0.5 font-medium text-foreground">
+                          const [credentials, setCredentials] = useState<{ [key: number]: Credential[] }>({ })
+                          const [loading, setLoading] = useState(true)
+                          const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({ })
+                        </p>
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* Credentials - Only show if payment is completed */}
-                {order.payment_status === "completed" ? (
-                  credentials[order.id] ? (
-                    <div className="border-t border-border bg-gradient-to-r from-green-50/30 to-transparent dark:from-green-900/10 p-5">
-                      <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        Access Credentials
-                      </h4>
-                      <div className="space-y-3">
+
+                  {/* Payment Error Message */}
+                  {order.payment_status === "failed" && order.payment_error_message && (
+                    <div className="border-t border-border bg-red-50 dark:bg-red-900/20 p-5">
+                      <div className="flex gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-red-900 dark:text-red-100">Payment Failed</p>
+                          const [loading, setLoading] = useState(true)
+                          const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({ })
+                          <p className="text-xs text-red-700 dark:text-red-300 mt-2">Please try placing a new order to complete your purchase.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Credentials - Only show if payment is completed */}
+                  {order.payment_status === "completed" ? (
+                    credentials[order.id] ? (
+                      <div className="border-t border-border bg-gradient-to-r from-green-50/30 to-transparent dark:from-green-900/10 p-5">
+                        <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          Access Credentials
+                        </h4>
+                        await fetchOrders()
                         {credentials[order.id].map((cred, index) => (
                           <div key={index} className="rounded-lg border border-green-200 dark:border-green-800 bg-white dark:bg-green-950/20 p-4 space-y-3">
                             {cred.username && (
@@ -297,41 +279,41 @@ export default function MyPurchasesPage() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="border-t border-border bg-blue-50 dark:bg-blue-900/20 p-5">
-                      <div className="flex gap-3">
-                        <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-blue-900 dark:text-blue-100">Credentials are being prepared. Please refresh in a moment.</p>
                       </div>
-                    </div>
-                  )
-                ) : order.payment_status === "pending" ? (
-                  <div className="border-t border-border bg-yellow-50 dark:bg-yellow-900/20 p-5">
-                    <div className="flex gap-3">
-                      <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Waiting for Payment</p>
-                        <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">Your credentials will be available once payment is confirmed.</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
+              ) : (
+            <div className="border-t border-border bg-blue-50 dark:bg-blue-900/20 p-5">
+              <div className="flex gap-3">
+                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-900 dark:text-blue-100">Credentials are being prepared. Please refresh in a moment.</p>
               </div>
-              )
-            })}
+            </div>
+            )
+            ) : order.payment_status === "pending" ? (
+            <div className="border-t border-border bg-yellow-50 dark:bg-yellow-900/20 p-5">
+              <div className="flex gap-3">
+                <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Waiting for Payment</p>
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">Your credentials will be available once payment is confirmed.</p>
+                </div>
+              </div>
+            </div>
+                  ) : null}
           </div>
+        )
+        })}
+      </div>
         )}
 
-        <div className="mt-8">
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-2 text-[#38bdf8] hover:text-[#0ea5e9]"
-          >
-            ← Back to products
-          </Link>
-        </div>
+      <div className="mt-8">
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-2 text-[#38bdf8] hover:text-[#0ea5e9]"
+        >
+          ← Back to products
+        </Link>
       </div>
     </div>
+    </div >
   )
 }
