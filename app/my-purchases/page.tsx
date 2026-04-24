@@ -1,12 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Loader2, LogOut, Copy, Eye, EyeOff, Package, CheckCircle2, AlertCircle, Clock, CreditCard } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { toast } from "sonner"
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Copy,
+  CreditCard,
+  Eye,
+  EyeOff,
+  Loader2,
+  LogOut,
+  Package,
+  Receipt,
+} from "lucide-react"
 
 interface Credential {
   id: number | null
@@ -16,64 +28,81 @@ interface Credential {
 
 interface Order {
   id: number
-  product_id: number
+  product_id?: number | null
   product_name: string
   quantity: number
   total_price: string
-  status?: string
-  payment_method_name: string
-  created_at: string
   payment_status: string
-  payment_reference_id?: string
-  payment_error_message?: string
+  payment_method_name?: string
+  payment_error_message?: string | null
   credential_count?: number
   credentials: Credential[]
+  created_at: string
+}
+
+const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  completed: {
+    label: "Completed",
+    color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    icon: CheckCircle2,
+  },
+  pending: {
+    label: "Pending",
+    color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+    icon: Clock,
+  },
+  failed: {
+    label: "Failed",
+    color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    icon: AlertCircle,
+  },
+  cancelled: {
+    label: "Cancelled",
+    color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+    icon: AlertCircle,
+  },
+}
+
+function formatPrice(value: string | number) {
+  return `₦${Number(value).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
 }
 
 export default function MyPurchasesPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({})
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-    checkAuth()
-  }, [])
+    const loadOrders = async () => {
+      try {
+        const authResponse = await fetch("/api/buyers/me")
+        if (authResponse.status === 401) {
+          router.push("/login")
+          return
+        }
 
-  async function checkAuth() {
-    try {
-      const res = await fetch("/api/buyers/me")
-      if (res.status === 401) {
-        router.push("/login")
-        return
-      }
+        const ordersResponse = await fetch("/api/orders")
+        if (ordersResponse.status === 401) {
+          router.push("/login")
+          return
+        }
+        if (!ordersResponse.ok) {
+          throw new Error("Failed to load purchases")
+        }
 
-      if (res.ok) {
-        await fetchOrders()
+        const data = await ordersResponse.json()
+        setOrders(data.orders ?? [])
+      } catch (error) {
+        console.error("Load purchases error:", error)
+        toast.error("Failed to load purchases")
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error("Auth check error:", error)
-      router.push("/login")
     }
-  }
 
-  async function fetchOrders() {
-    setLoading(true)
-    try {
-      const res = await fetch("/api/orders")
-      if (res.ok) {
-        const data = await res.json()
-        setOrders(data.orders || [])
-      } else if (res.status === 401) {
-        router.push("/login")
-      }
-    } catch (error) {
-      console.error("Fetch orders error:", error)
-      toast.error("Failed to load orders")
-    } finally {
-      setLoading(false)
-    }
-  }
+    loadOrders()
+  }, [router])
 
   async function handleLogout() {
     try {
@@ -91,12 +120,18 @@ export default function MyPurchasesPage() {
 
   function copyToClipboard(text: string, label: string) {
     navigator.clipboard.writeText(text)
-    toast.success(`${label} copied!`)
+    toast.success(`${label} copied`)
   }
+
+  const completedCount = orders.filter((order) => order.payment_status?.toLowerCase() === "completed").length
+  const pendingCount = orders.filter((order) => order.payment_status?.toLowerCase() === "pending").length
+  const totalSpent = orders
+    .filter((order) => order.payment_status?.toLowerCase() === "completed")
+    .reduce((sum, order) => sum + Number(order.total_price), 0)
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
       </div>
     )
@@ -108,32 +143,46 @@ export default function MyPurchasesPage() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <DashboardHeader
             title="My Purchases"
-            description="View and manage your purchased accounts and credentials"
+            description="Track your paid orders and view every assigned credential."
           />
           <div className="flex flex-col gap-2 sm:flex-row">
-            <a href="https://checkout.korapay.com/pay/nettoolz" target="_blank" rel="noopener noreferrer">
-              <Button className="gap-2 w-full bg-green-600 hover:bg-green-700">
+            <Link href="/quick-pay">
+              <Button className="w-full gap-2 bg-green-600 hover:bg-green-700 sm:w-auto">
                 <CreditCard className="h-4 w-4" />
-                One-Time Payment
+                Top Up Balance
               </Button>
-            </a>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="gap-2 w-full sm:w-auto"
-            >
+            </Link>
+            <Button onClick={handleLogout} variant="outline" className="w-full gap-2 sm:w-auto">
               <LogOut className="h-4 w-4" />
               Logout
             </Button>
           </div>
         </div>
 
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <Receipt className="mb-2 h-5 w-5 text-[#38bdf8]" />
+            <p className="text-2xl font-bold text-foreground">{orders.length}</p>
+            <p className="text-sm text-muted-foreground">Total Orders</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <CheckCircle2 className="mb-2 h-5 w-5 text-green-600" />
+            <p className="text-2xl font-bold text-foreground">{completedCount}</p>
+            <p className="text-sm text-muted-foreground">Completed Orders</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <Package className="mb-2 h-5 w-5 text-[#38bdf8]" />
+            <p className="text-2xl font-bold text-foreground">{formatPrice(totalSpent)}</p>
+            <p className="text-sm text-muted-foreground">Total Spent</p>
+          </div>
+        </div>
+
         {orders.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-border bg-secondary/30 p-12 text-center">
+          <div className="rounded-2xl border-2 border-dashed border-border bg-secondary/30 p-12 text-center">
             <Package className="mx-auto mb-4 h-12 w-12 text-muted-foreground opacity-50" />
-            <p className="text-lg font-medium text-muted-foreground">You haven't made any purchases yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Get started by browsing our premium accounts collection</p>
-            <Link href="/products">
+            <p className="text-lg font-medium text-muted-foreground">You haven&apos;t made any purchases yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">Your completed orders and credentials will appear here.</p>
+            <Link href="/shop">
               <Button className="mt-6 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]">
                 Browse Products
               </Button>
@@ -142,22 +191,16 @@ export default function MyPurchasesPage() {
         ) : (
           <div className="space-y-6">
             {orders.map((order) => {
-              const statusConfig = {
-                completed: { icon: CheckCircle2, color: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400", label: "Paid" },
-                failed: { icon: AlertCircle, color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400", label: "Failed" },
-                cancelled: { icon: AlertCircle, color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400", label: "Cancelled" },
-                pending: { icon: Clock, color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400", label: "Pending" },
-              }
-              const status = statusConfig[order.payment_status as keyof typeof statusConfig] || statusConfig.pending
+              const status = statusConfig[order.payment_status?.toLowerCase()] ?? statusConfig.pending
               const StatusIcon = status.icon
+              const credentialCount = order.credential_count ?? order.credentials.length
 
               return (
-                <div key={order.id} className="group rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden">
-                  {/* Order Header */}
+                <div key={order.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                   <div className="border-b border-border bg-gradient-to-r from-secondary/30 to-transparent p-5">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex items-start justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className={`rounded-lg p-2.5 ${status.color}`}>
+                        <div className={`rounded-xl p-2.5 ${status.color}`}>
                           <StatusIcon className="h-5 w-5" />
                         </div>
                         <div>
@@ -166,154 +209,161 @@ export default function MyPurchasesPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#38bdf8]">
-                          ₦{parseFloat(order.total_price).toLocaleString()}
-                        </p>
-                        <p className={`inline-block mt-1 rounded-full px-3 py-1 text-xs font-medium ${status.color}`}>
+                        <p className="text-xl font-bold text-[#38bdf8]">{formatPrice(order.total_price)}</p>
+                        <p className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-medium ${status.color}`}>
                           {status.label}
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-3 text-sm">
+
+                    <div className="grid gap-4 text-sm sm:grid-cols-4">
                       <div>
                         <p className="text-xs font-medium text-muted-foreground">Payment Method</p>
-                        <p className="mt-0.5 font-medium text-foreground">{order.payment_method_name}</p>
+                        <p className="mt-0.5 font-medium text-foreground">{order.payment_method_name ?? "Balance"}</p>
                       </div>
                       <div>
                         <p className="text-xs font-medium text-muted-foreground">Quantity</p>
                         <p className="mt-0.5 font-medium text-foreground">{order.quantity} unit(s)</p>
                       </div>
                       <div>
+                        <p className="text-xs font-medium text-muted-foreground">Credentials</p>
+                        <p className="mt-0.5 font-medium text-foreground">{credentialCount}</p>
+                      </div>
+                      <div>
                         <p className="text-xs font-medium text-muted-foreground">Purchased</p>
                         <p className="mt-0.5 font-medium text-foreground">
-                          const [credentials, setCredentials] = useState<{ [key: number]: Credential[] }>({ })
-                          const [loading, setLoading] = useState(true)
-                          const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({ })
+                          {new Date(order.created_at).toLocaleDateString("en-NG", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
                         </p>
                       </div>
                     </div>
                   </div>
 
-
-                  {/* Payment Error Message */}
-                  {order.payment_status === "failed" && order.payment_error_message && (
-                    <div className="border-t border-border bg-red-50 dark:bg-red-900/20 p-5">
+                  {order.payment_status === "failed" && order.payment_error_message ? (
+                    <div className="border-t border-border bg-red-50 p-5 dark:bg-red-900/20">
                       <div className="flex gap-3">
-                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
                         <div>
                           <p className="text-sm font-semibold text-red-900 dark:text-red-100">Payment Failed</p>
-                          const [loading, setLoading] = useState(true)
-                          const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({ })
-                          <p className="text-xs text-red-700 dark:text-red-300 mt-2">Please try placing a new order to complete your purchase.</p>
+                          <p className="mt-1 text-sm text-red-800 dark:text-red-200">{order.payment_error_message}</p>
                         </div>
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
-                  {/* Credentials - Only show if payment is completed */}
-                  {order.payment_status === "completed" ? (
-                    credentials[order.id] ? (
-                      <div className="border-t border-border bg-gradient-to-r from-green-50/30 to-transparent dark:from-green-900/10 p-5">
-                        <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                          Access Credentials
-                        </h4>
-                        await fetchOrders()
-                        {credentials[order.id].map((cred, index) => (
-                          <div key={index} className="rounded-lg border border-green-200 dark:border-green-800 bg-white dark:bg-green-950/20 p-4 space-y-3">
-                            {cred.username && (
+                  {order.payment_status === "completed" && order.credentials.length > 0 ? (
+                    <div className="space-y-4 border-t border-border bg-gradient-to-r from-green-50/30 to-transparent p-5 dark:from-green-900/10">
+                      <h4 className="flex items-center gap-2 font-semibold text-foreground">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        Assigned Credentials
+                      </h4>
+
+                      {order.credentials.map((credential, index) => {
+                        const passwordKey = `${order.id}-${index}`
+                        return (
+                          <div
+                            key={credential.id ?? `${order.id}-${index}`}
+                            className="space-y-3 rounded-xl border border-border bg-background p-4"
+                          >
+                            {credential.username ? (
                               <div>
-                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Username</p>
-                                <div className="flex items-center justify-between gap-2 bg-secondary/50 rounded-lg p-3">
-                                  <code className="flex-1 text-sm font-mono text-foreground select-all">
-                                    {cred.username}
-                                  </code>
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</p>
+                                <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-3">
+                                  <code className="flex-1 text-sm text-foreground">{credential.username}</code>
                                   <button
-                                    onClick={() => copyToClipboard(cred.username, "Username")}
-                                    className="text-muted-foreground hover:text-foreground transition-colors"
-                                    title="Copy to clipboard"
+                                    type="button"
+                                    onClick={() => copyToClipboard(credential.username as string, "Username")}
+                                    className="text-muted-foreground transition-colors hover:text-foreground"
+                                    title="Copy username"
                                   >
                                     <Copy className="h-4 w-4" />
                                   </button>
                                 </div>
                               </div>
-                            )}
+                            ) : null}
 
-                            {cred.password && (
+                            {credential.password ? (
                               <div>
-                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Password</p>
-                                <div className="flex items-center justify-between gap-2 bg-secondary/50 rounded-lg p-3">
-                                  <code className="flex-1 text-sm font-mono text-foreground select-all">
-                                    {showPasswords[`${order.id}-${index}`]
-                                      ? cred.password
-                                      : "•".repeat(cred.password.length)}
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</p>
+                                <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-3">
+                                  <code className="flex-1 text-sm text-foreground">
+                                    {showPasswords[passwordKey]
+                                      ? credential.password
+                                      : "•".repeat(credential.password.length)}
                                   </code>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() =>
-                                        setShowPasswords((prev) => ({
-                                          ...prev,
-                                          [`${order.id}-${index}`]: !prev[`${order.id}-${index}`],
-                                        }))
-                                      }
-                                      className="text-muted-foreground hover:text-foreground transition-colors"
-                                      title="Show/Hide password"
-                                    >
-                                      {showPasswords[`${order.id}-${index}`] ? (
-                                        <EyeOff className="h-4 w-4" />
-                                      ) : (
-                                        <Eye className="h-4 w-4" />
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => copyToClipboard(cred.password, "Password")}
-                                      className="text-muted-foreground hover:text-foreground transition-colors"
-                                      title="Copy to clipboard"
-                                    >
-                                      <Copy className="h-4 w-4" />
-                                    </button>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShowPasswords((previous) => ({
+                                        ...previous,
+                                        [passwordKey]: !previous[passwordKey],
+                                      }))
+                                    }
+                                    className="text-muted-foreground transition-colors hover:text-foreground"
+                                    title="Show or hide password"
+                                  >
+                                    {showPasswords[passwordKey] ? (
+                                      <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(credential.password as string, "Password")}
+                                    className="text-muted-foreground transition-colors hover:text-foreground"
+                                    title="Copy password"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </button>
                                 </div>
                               </div>
-                            )}
+                            ) : null}
                           </div>
-                        ))}
-                      </div>
-                      </div>
-              ) : (
-            <div className="border-t border-border bg-blue-50 dark:bg-blue-900/20 p-5">
-              <div className="flex gap-3">
-                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-900 dark:text-blue-100">Credentials are being prepared. Please refresh in a moment.</p>
-              </div>
-            </div>
-            )
-            ) : order.payment_status === "pending" ? (
-            <div className="border-t border-border bg-yellow-50 dark:bg-yellow-900/20 p-5">
-              <div className="flex gap-3">
-                <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Waiting for Payment</p>
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">Your credentials will be available once payment is confirmed.</p>
-                </div>
-              </div>
-            </div>
+                        )
+                      })}
+                    </div>
                   ) : null}
+
+                  {order.payment_status === "completed" && order.credentials.length === 0 ? (
+                    <div className="border-t border-border bg-blue-50 p-5 dark:bg-blue-900/20">
+                      <div className="flex gap-3">
+                        <Clock className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                          Payment is complete. Credentials are still being prepared for this order.
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {order.payment_status === "pending" ? (
+                    <div className="border-t border-border bg-yellow-50 p-5 dark:bg-yellow-900/20">
+                      <div className="flex gap-3">
+                        <Clock className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" />
+                        <div>
+                          <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Waiting for Payment</p>
+                          <p className="mt-1 text-sm text-yellow-800 dark:text-yellow-200">
+                            Credentials will appear here as soon as payment is confirmed.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
-        )
-        })}
-      </div>
         )}
 
-      <div className="mt-8">
-        <Link
-          href="/products"
-          className="inline-flex items-center gap-2 text-[#38bdf8] hover:text-[#0ea5e9]"
-        >
-          ← Back to products
-        </Link>
+        {pendingCount > 0 ? (
+          <p className="mt-6 text-sm text-muted-foreground">
+            {pendingCount} order{pendingCount === 1 ? " is" : "s are"} still awaiting payment confirmation.
+          </p>
+        ) : null}
       </div>
     </div>
-    </div >
   )
 }
