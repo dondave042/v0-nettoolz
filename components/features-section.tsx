@@ -37,9 +37,7 @@ export function FeaturesSection() {
   return (
     <section className="relative bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] py-20 lg:py-28 overflow-hidden">
       {/* Animated background elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute left-0 top-0 h-96 w-96 rounded-full bg-[#38bdf8] blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-[#0ea5e9] blur-3xl"></div>
+      <div className="absolute inset-0 bg-[#0f88bb]" style={{opacity: 1}}>
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
