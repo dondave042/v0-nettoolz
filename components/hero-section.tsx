@@ -12,9 +12,25 @@ export function HeroSection() {
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
-        <div className="flex flex-col items-center gap-16 lg:gap-12">
+        <div 
+          className="flex flex-col items-center gap-16 lg:gap-12"
+          style={{
+            fontSize: "12px",
+            fontWeight: "500",
+          }}
+        >
           {/* Text content */}
-          <div className="max-w-3xl text-center">
+          <div 
+            className="max-w-3xl text-center"
+            style={{
+              textTransform: "capitalize",
+              textAlign: "center",
+              fontSize: "10px",
+              backgroundColor: "#3d69cc",
+              borderRadius: "0px",
+              borderColor: "#199bdf",
+            }}
+          >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
               <Star className="h-4 w-4" />
               Trusted by 50,000+ Happy Customers Worldwide
@@ -29,7 +45,12 @@ export function HeroSection() {
             <p className="mb-10 max-w-2xl text-pretty text-lg leading-relaxed text-[#bae6fd] md:text-xl">
               Access premium accounts across all platforms. Verified sellers, instant delivery, and lifetime support. Join thousands of satisfied customers today.
             </p>
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-5">
+            <div 
+              className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-5"
+              style={{
+                textTransform: "capitalize",
+              }}
+            >
               <Button
                 size="lg"
                 className="gap-2 bg-[#38bdf8] text-[#0c4a6e] hover:bg-[#7dd3fc]"
