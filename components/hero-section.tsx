@@ -86,17 +86,7 @@ export function HeroSection() {
             </div>
           </div>
 
-          {/* Hero image / logo */}
-          <div className="flex-shrink-0">
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-full bg-[#38bdf8]/20 blur-2xl" />
-              <img
-                src="/images/logo.png"
-                alt="NETTOOLZ Premium Web Logs"
-                className="relative h-80 w-80 drop-shadow-2xl"
-              />
-            </div>
-          </div>
+
         </div>
       </div>
     </section>
