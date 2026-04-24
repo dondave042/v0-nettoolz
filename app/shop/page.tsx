@@ -177,7 +177,7 @@ export default function ShopPage() {
                         </div>
                     </div>
 
-                    {/* Product Grid */}
+                    {/* Product List */}
                     {loading ? (
                         <div className="flex items-center justify-center py-24">
                             <Loader2 className="h-8 w-8 animate-spin text-[#38bdf8]" />
@@ -208,60 +208,77 @@ export default function ShopPage() {
                             <p className="mb-4 text-sm text-muted-foreground">
                                 {filtered.length} product{filtered.length !== 1 ? "s" : ""} found
                             </p>
-                            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            <div className="space-y-5">
                                 {filtered.map((product) => (
                                     <div
                                         key={product.id}
-                                        className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md"
+                                        className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md"
                                     >
-                                        {/* Product image / placeholder */}
-                                        <div className="flex h-40 items-center justify-center bg-gradient-to-br from-[#0c4a6e]/30 to-[#075985]/30">
-                                            {product.image_url ? (
-                                                <img
-                                                    src={product.image_url}
-                                                    alt={product.name}
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            ) : (
-                                                <Package className="h-14 w-14 text-[#38bdf8]/40" />
-                                            )}
-                                        </div>
-
-                                        {/* Badges */}
-                                        <div className="absolute left-3 top-3 flex gap-1.5">
-                                            {product.featured && (
-                                                <Badge className="bg-amber-500/90 text-white text-[10px]">
-                                                    <Star className="mr-1 h-2.5 w-2.5" />
-                                                    Featured
-                                                </Badge>
-                                            )}
-                                            {product.available_qty === 0 && (
-                                                <Badge variant="destructive" className="text-[10px]">Out of stock</Badge>
-                                            )}
-                                        </div>
-
-                                        {/* Content */}
-                                        <div className="flex flex-1 flex-col gap-3 p-4">
-                                            {product.category && (
-                                                <span className="text-xs font-medium text-[#38bdf8]">{product.category}</span>
-                                            )}
-                                            <h3 className="font-semibold text-foreground line-clamp-1">{product.name}</h3>
-                                            <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
-                                            <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                                                <span className="text-lg font-bold text-foreground">{formatPrice(product.price)}</span>
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => handleAddToCart(product)}
-                                                    disabled={product.available_qty === 0 || addingId === product.id}
-                                                    className="gap-1.5 bg-[#38bdf8] text-white hover:bg-[#0ea5e9] disabled:opacity-50"
-                                                >
-                                                    {addingId === product.id ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        <div className="flex flex-col md:flex-row">
+                                            <div className="relative md:w-72 md:flex-shrink-0">
+                                                <div className="flex h-56 items-center justify-center bg-gradient-to-br from-[#0c4a6e]/30 to-[#075985]/30 md:h-full">
+                                                    {product.image_url ? (
+                                                        <img
+                                                            src={product.image_url}
+                                                            alt={product.name}
+                                                            className="h-full w-full object-cover"
+                                                        />
                                                     ) : (
-                                                        <ShoppingCart className="h-3.5 w-3.5" />
+                                                        <Package className="h-16 w-16 text-[#38bdf8]/40" />
                                                     )}
-                                                    Add
-                                                </Button>
+                                                </div>
+
+                                                <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                                                    {product.featured && (
+                                                        <Badge className="bg-amber-500/90 text-white text-[10px]">
+                                                            <Star className="mr-1 h-2.5 w-2.5" />
+                                                            Featured
+                                                        </Badge>
+                                                    )}
+                                                    {product.available_qty === 0 && (
+                                                        <Badge variant="destructive" className="text-[10px]">Out of stock</Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-1 flex-col justify-between gap-5 p-5 md:flex-row md:items-start md:p-6">
+                                                <div className="min-w-0 flex-1 space-y-3">
+                                                    {product.category && (
+                                                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-[#38bdf8]">
+                                                            {product.category}
+                                                        </span>
+                                                    )}
+                                                    <div className="space-y-2">
+                                                        <h3 className="text-xl font-semibold text-foreground">{product.name}</h3>
+                                                        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                                                            {product.description}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                                                        <span className="text-2xl font-bold text-foreground">{formatPrice(product.price)}</span>
+                                                        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
+                                                            {product.available_qty > 0
+                                                                ? `${product.available_qty} in stock`
+                                                                : "Out of stock"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex w-full flex-col gap-3 md:w-44 md:flex-shrink-0">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleAddToCart(product)}
+                                                        disabled={product.available_qty === 0 || addingId === product.id}
+                                                        className="w-full gap-1.5 bg-[#38bdf8] text-white hover:bg-[#0ea5e9] disabled:opacity-50"
+                                                    >
+                                                        {addingId === product.id ? (
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <ShoppingCart className="h-3.5 w-3.5" />
+                                                        )}
+                                                        Add to Cart
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
