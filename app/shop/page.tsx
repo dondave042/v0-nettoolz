@@ -16,6 +16,7 @@ import {
     Filter,
     Loader2,
     Sparkles,
+    ChevronDown,
 } from "lucide-react"
 
 interface Product {
@@ -24,12 +25,11 @@ interface Product {
     description: string
     price: number
     category?: string
+    category_name?: string
     available_qty: number
     image_url?: string
     featured?: boolean
 }
-
-const CATEGORIES = ["All", "Streaming", "Gaming", "Social Media", "Tools", "Licenses", "Accounts"]
 
 export default function ShopPage() {
     const { addItem } = useCart()
@@ -39,6 +39,18 @@ export default function ShopPage() {
     const [search, setSearch] = useState("")
     const [activeCategory, setActiveCategory] = useState("All")
     const [addingId, setAddingId] = useState<number | null>(null)
+    const [categoriesOpen, setCategoriesOpen] = useState(false)
+
+    const categories = [
+        "All",
+        ...Array.from(
+            new Set(
+                products
+                    .map((product) => product.category?.trim())
+                    .filter((category): category is string => Boolean(category))
+            )
+        ),
+    ]
 
     useEffect(() => {
         const load = async () => {
@@ -46,7 +58,11 @@ export default function ShopPage() {
                 const res = await fetch("/api/products")
                 if (!res.ok) throw new Error("Failed to load products")
                 const data = await res.json()
-                setProducts(data.products ?? data)
+                const normalizedProducts = (data.products ?? data).map((product: Product) => ({
+                    ...product,
+                    category: product.category ?? product.category_name ?? "Uncategorized",
+                }))
+                setProducts(normalizedProducts)
             } catch {
                 toast.error("Failed to load products. Please try again.")
             } finally {
@@ -127,20 +143,37 @@ export default function ShopPage() {
                                 className="pl-9"
                             />
                         </div>
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                        <div className="relative flex items-center gap-1.5">
                             <Filter className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                            {CATEGORIES.map((cat) => (
-                                <button
-                                    key={cat}
-                                    onClick={() => setActiveCategory(cat)}
-                                    className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${activeCategory === cat
-                                            ? "bg-[#38bdf8] text-white"
-                                            : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                        }`}
-                                >
-                                    {cat}
-                                </button>
-                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setCategoriesOpen((open) => !open)}
+                                className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            >
+                                <span>{activeCategory === "All" ? "Categories" : activeCategory}</span>
+                                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${categoriesOpen ? "rotate-180" : ""}`} />
+                            </button>
+
+                            {categoriesOpen ? (
+                                <div className="absolute right-0 top-full z-20 mt-2 min-w-52 overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+                                    {categories.map((category) => (
+                                        <button
+                                            key={category}
+                                            type="button"
+                                            onClick={() => {
+                                                setActiveCategory(category)
+                                                setCategoriesOpen(false)
+                                            }}
+                                            className={`block w-full px-4 py-3 text-left text-sm transition-colors ${activeCategory === category
+                                                ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                                                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                                }`}
+                                        >
+                                            {category}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
