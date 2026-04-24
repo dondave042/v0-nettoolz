@@ -68,6 +68,19 @@ interface DashboardSummaryResponse {
   serverTime: string
 }
 
+interface DepositStatusResponse {
+  deposit: {
+    id: number
+    amount: number
+    status: string
+    reference_id: string
+    created_at: string
+  }
+  buyer: {
+    balance: number
+  }
+}
+
 function DashboardPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -88,6 +101,8 @@ function DashboardPageContent() {
   const lastPaymentEventRef = useRef<{ purchase: string | null; deposit: string | null } | null>(null)
   const fastSyncUntilRef = useRef(0)
   const redirectingToLoginRef = useRef(false)
+  const trackedDepositRef = useRef<string | null>(null)
+  const depositCompletionToastShownRef = useRef(false)
   const topUpPreviewAmount = Number.isFinite(Number(topUpAmount))
     ? Math.max(0, Math.round(Number(topUpAmount)))
     : 0
@@ -162,9 +177,12 @@ function DashboardPageContent() {
   useEffect(() => {
     let disposed = false
     const cameFromPayment = searchParams.get('refresh') === 'payment'
+    const depositReferenceId = searchParams.get('reference_id')
     if (cameFromPayment) {
       // Poll aggressively for one minute after returning from payment provider.
       fastSyncUntilRef.current = Date.now() + 60_000
+      trackedDepositRef.current = depositReferenceId
+      depositCompletionToastShownRef.current = false
       router.replace('/dashboard')
     }
 
@@ -172,6 +190,7 @@ function DashboardPageContent() {
 
     // Poll frequently after payment redirect, then fall back to normal cadence.
     let timeoutId: ReturnType<typeof setTimeout> | undefined
+    let depositTimeoutId: ReturnType<typeof setTimeout> | undefined
     const scheduleNextPoll = () => {
       if (disposed || redirectingToLoginRef.current) {
         return
@@ -187,6 +206,54 @@ function DashboardPageContent() {
     }
     scheduleNextPoll()
 
+    const pollTrackedDeposit = async () => {
+      const referenceId = trackedDepositRef.current
+      if (!referenceId || disposed || redirectingToLoginRef.current) {
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/deposits?reference_id=${encodeURIComponent(referenceId)}`, {
+          cache: 'no-store',
+        })
+
+        if (!response.ok) {
+          if (response.status !== 404) {
+            throw new Error(`Failed to fetch deposit status (${response.status})`)
+          }
+        } else {
+          const payload = await response.json() as DepositStatusResponse
+          const status = String(payload.deposit?.status || '').toLowerCase()
+
+          if (status === 'completed') {
+            trackedDepositRef.current = null
+            await fetchDashboardData(true)
+            if (!depositCompletionToastShownRef.current) {
+              depositCompletionToastShownRef.current = true
+              toast.success('Wallet credited successfully')
+            }
+            return
+          }
+
+          if (status === 'failed' || status === 'cancelled') {
+            trackedDepositRef.current = null
+            toast.error(`Top-up ${status}`)
+            return
+          }
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to fetch tracked deposit status:', error)
+      }
+
+      if (!disposed && trackedDepositRef.current) {
+        depositTimeoutId = setTimeout(pollTrackedDeposit, 1000)
+      }
+    }
+
+    if (trackedDepositRef.current) {
+      void pollTrackedDeposit()
+    }
+
     // Re-fetch immediately when user returns to this tab (e.g., after Korapay redirect)
     const handleVisibility = () => {
       if (document.visibilityState === "visible") fetchDashboardData(true)
@@ -196,6 +263,7 @@ function DashboardPageContent() {
     return () => {
       disposed = true
       if (timeoutId) clearTimeout(timeoutId)
+      if (depositTimeoutId) clearTimeout(depositTimeoutId)
       document.removeEventListener("visibilitychange", handleVisibility)
     }
   }, [fetchDashboardData, router, searchParams])

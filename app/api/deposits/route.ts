@@ -103,7 +103,7 @@ async function initializeKorapayCharge(
     }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
     const buyer = await getBuyerSession()
 
     if (!buyer) {
@@ -111,7 +111,49 @@ export async function GET() {
     }
 
     try {
+        const url = new URL(request.url)
+        const referenceId = url.searchParams.get('reference_id')?.trim() || null
         const sql = getDb()
+
+        if (referenceId) {
+            const rows = await sql`
+                SELECT id, amount, status, reference_id, created_at
+                FROM deposits
+                WHERE buyer_id = ${buyer.id}
+                  AND reference_id = ${referenceId}
+                ORDER BY created_at DESC
+                LIMIT 1
+            `
+
+            if (rows.length === 0) {
+                return NextResponse.json(
+                    { error: 'Deposit not found' },
+                    { status: 404 }
+                )
+            }
+
+            const deposit = rows[0]
+            const buyerRows = await sql`
+                SELECT balance
+                FROM buyers
+                WHERE id = ${buyer.id}
+                LIMIT 1
+            `
+
+            return NextResponse.json({
+                deposit: {
+                    id: deposit.id,
+                    amount: parseFloat(deposit.amount ?? 0),
+                    status: deposit.status,
+                    reference_id: deposit.reference_id,
+                    created_at: deposit.created_at,
+                },
+                buyer: {
+                    balance: parseFloat(buyerRows[0]?.balance ?? 0),
+                },
+            })
+        }
+
         const rows = await sql`
             SELECT
                 id,
@@ -198,6 +240,8 @@ export async function POST(request: Request) {
             referenceId,
         })
 
+        const dashboardRedirectUrl = `${callbackBaseUrl}/dashboard?refresh=payment&reference_id=${encodeURIComponent(referenceId)}`
+
         const requestPayload = {
             amount: Math.round(parsedAmount),
             currency: depositCurrency,
@@ -211,7 +255,7 @@ export async function POST(request: Request) {
                 buyer_id: String(buyer.id),
             },
             notification_url: `${callbackBaseUrl}/api/webhooks/korapay`,
-            redirect_url: `${callbackBaseUrl}/dashboard?refresh=payment`,
+            redirect_url: dashboardRedirectUrl,
         }
 
         const attempts: Array<Record<string, any>> = [
@@ -234,7 +278,7 @@ export async function POST(request: Request) {
                     email: normalizedEmail,
                 },
                 notification_url: `${callbackBaseUrl}/api/webhooks/korapay`,
-                redirect_url: `${callbackBaseUrl}/dashboard?refresh=payment`,
+                redirect_url: dashboardRedirectUrl,
             },
             {
                 amount: parsedAmount,
