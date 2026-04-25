@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { Menu, X, ShoppingCart, Search, LogOut } from "lucide-react"
+import { Menu, X, ShoppingCart, Search, LogOut, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/lib/cart-context"
 import { CartDrawer } from "@/components/cart-drawer"
@@ -175,6 +175,15 @@ export function SiteHeader() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => router.push('/wallet')}
+                    className="gap-1"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Wallet
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => router.push('/login')}
                   >
                     Login
@@ -258,18 +267,19 @@ export function SiteHeader() {
                 ) : (
                   <>
                     <Link
+                      href="/wallet"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                    >
+                      <Wallet className="h-4 w-4" />
+                      Wallet
+                    </Link>
+                    <Link
                       href="/login"
                       onClick={() => setMobileOpen(false)}
                       className="block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
                     >
                       Login
-                    </Link>
-                    <Link
-                      href="/wallet"
-                      onClick={() => setMobileOpen(false)}
-                      className="block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
-                    >
-                      Wallet
                     </Link>
                     <Link
                       href="/signup"
