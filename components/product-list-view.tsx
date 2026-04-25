@@ -120,11 +120,11 @@ function ProductListRow({ product }: { product: Product }) {
               </span>
               <Button
                 size="sm"
-                className="h-7 gap-1 px-2 text-[10px] bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+                className="h-6 gap-1 px-1.5 text-[9px] bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
                 disabled={!inStock}
                 onClick={handleAddToCart}
               >
-                <ShoppingCart className="h-3 w-3" />
+                <ShoppingCart className="h-2.5 w-2.5" />
                 {inStock ? "Add to Cart" : "Sold Out"}
               </Button>
             </div>
