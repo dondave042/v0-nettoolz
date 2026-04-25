@@ -3,11 +3,9 @@ import { SiteFooter } from "@/components/site-footer"
 import { AnnouncementsBar } from "@/components/announcements-bar"
 import { HeroSection } from "@/components/hero-section"
 import { CategoriesSection } from "@/components/categories-section"
-import { ProductsSection } from "@/components/products-section"
 import { FeaturesSection } from "@/components/features-section"
 import { TestimonialsSection } from "@/components/testimonials-section"
 import { ContactSection } from "@/components/contact-section"
-import { Suspense } from "react"
 
 export default function HomePage() {
   return (
@@ -17,9 +15,6 @@ export default function HomePage() {
       <main className="flex-1">
         <HeroSection />
         <CategoriesSection />
-        <Suspense>
-          <ProductsSection />
-        </Suspense>
         <FeaturesSection />
         <TestimonialsSection />
         <ContactSection />
