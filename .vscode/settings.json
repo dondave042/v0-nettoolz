@@ -1,0 +1,14 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "css.validate": false,
+  "scss.validate": false,
+  "github-actions.use-enterprise": true,
+  "github-actions.workflows.pinned.refresh.enabled": true,
+  "github.copilot.chat.agent.autoFix": true,
+  "github.copilot.chat.claudeAgent.allowDangerouslySkipPermissions": true,
+  "github.copilot.chat.anthropic.tools.websearch.blockedDomains": [
+    ""
+  ],
+  "json.format.keepLines": true,
+  "remoteHub.richNavigation.enabled": true
+}

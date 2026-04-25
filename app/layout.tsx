@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Poppins } from 'next/font/google'
+import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Toaster } from 'sonner'
+import { CartProvider } from '@/lib/cart-context'
+import { AppInitializer } from '@/components/app-initializer'
 import './globals.css'
 
 const _inter = Inter({ subsets: ["latin"] })
@@ -31,9 +35,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        {children}
+        <AppInitializer>
+          <CartProvider>
+            {children}
+          </CartProvider>
+        </AppInitializer>
         <Toaster position="top-right" richColors />
+        <Script
+          id="chatway"
+          src="https://cdn.chatway.app/widget.js?id=5uP6H0wH7ThG"
+          strategy="afterInteractive"
+        />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

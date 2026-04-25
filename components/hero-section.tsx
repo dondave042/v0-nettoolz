@@ -1,33 +1,31 @@
-import { ArrowRight, Shield, Zap, Clock } from "lucide-react"
+import { ArrowRight, Shield, Zap, Clock, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1]">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute left-1/4 top-1/4 h-72 w-72 rounded-full bg-[#38bdf8] blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-[#7dd3fc] blur-3xl" />
+      {/* Animated background pattern */}
+      <div className="absolute inset-0 opacity-15">
+        <div className="absolute left-1/4 top-1/4 h-80 w-80 rounded-full bg-[#38bdf8] blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-[#7dd3fc] blur-3xl animate-pulse delay-1000" />
+        <div className="absolute right-1/3 top-1/3 h-72 w-72 rounded-full bg-[#0ea5e9] blur-3xl animate-pulse delay-500" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
-        <div className="flex flex-col items-center gap-12 lg:flex-row lg:justify-between">
+      <div className="relative mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-24">
+        <div className="flex flex-col items-center gap-12 lg:gap-10">
           {/* Text content */}
-          <div className="max-w-2xl text-center lg:text-left">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/30 bg-[#38bdf8]/10 px-4 py-1.5 text-sm font-medium text-[#7dd3fc]">
-              <Zap className="h-4 w-4" />
-              Trusted by 10,000+ Customers
+          <div className="max-w-3xl text-center">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
+              <Sparkles className="h-4 w-4" />
+              Premium Digital Products
             </div>
-            <h1 className="mb-6 text-balance font-[var(--font-heading)] text-4xl font-extrabold leading-tight tracking-tight text-white md:text-5xl lg:text-6xl">
-              The Ultimate Destination for{" "}
-              <span className="text-[#38bdf8]">Premium Digital Accounts</span>
+            <h1 className="mb-8 text-balance font-[var(--font-heading)] text-5xl font-extrabold leading-tight tracking-tight text-white md:text-6xl lg:text-7xl">
+              Shop NETTOOLZ
             </h1>
-            <p className="mb-8 max-w-xl text-pretty text-lg leading-relaxed text-[#bae6fd]">
-              Get instant access to premium social media, streaming, gaming, and
-              more. Verified accounts, unbeatable prices, and 24/7 customer
-              support.
+            <p className="mb-10 max-w-2xl text-pretty text-lg leading-relaxed text-[#bae6fd] md:text-xl">
+              Browse our catalog of premium accounts, tools, and licenses. Instant delivery after purchase.
             </p>
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-5">
               <Button
                 size="lg"
                 className="gap-2 bg-[#38bdf8] text-[#0c4a6e] hover:bg-[#7dd3fc]"
@@ -63,17 +61,7 @@ export function HeroSection() {
             </div>
           </div>
 
-          {/* Hero image / logo */}
-          <div className="flex-shrink-0">
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-full bg-[#38bdf8]/20 blur-2xl" />
-              <img
-                src="/images/logo.png"
-                alt="NETTOOLZ Premium Web Logs"
-                className="relative h-80 w-80 drop-shadow-2xl"
-              />
-            </div>
-          </div>
+
         </div>
       </div>
     </section>
