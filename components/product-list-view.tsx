@@ -125,7 +125,7 @@ function ProductListRow({ product }: { product: Product }) {
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="h-3 w-3" />
-                {inStock ? "Add" : "Sold Out"}
+                {inStock ? "Add to Cart" : "Sold Out"}
               </Button>
             </div>
           </div>
