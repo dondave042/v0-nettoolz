@@ -82,20 +82,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
 
-    const parsedCategoryId = category_id ? parseInt(category_id) : null
-    if (!parsedCategoryId || !Number.isInteger(parsedCategoryId) || parsedCategoryId <= 0) {
-      return NextResponse.json({ error: "category_id is required and must be a valid category" }, { status: 400 })
-    }
-
     const sql = getDb()
-    const categoryExists = await sql`SELECT id FROM categories WHERE id = ${parsedCategoryId}`
-    if (categoryExists.length === 0) {
-      return NextResponse.json({ error: "category_id does not match any existing category" }, { status: 422 })
-    }
-
     const result = await sql`
       INSERT INTO products (sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password)
-      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${parsedCategoryId}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${product_username || null}, ${product_password || null})
+      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${product_username || null}, ${product_password || null})
       RETURNING *
     `
     const newProductId = Number(result[0]?.id)
@@ -119,21 +109,11 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
 
-    const parsedCategoryId = category_id ? parseInt(category_id) : null
-    if (!parsedCategoryId || !Number.isInteger(parsedCategoryId) || parsedCategoryId <= 0) {
-      return NextResponse.json({ error: "category_id is required and must be a valid category" }, { status: 400 })
-    }
-
     const sql = getDb()
-    const categoryExists = await sql`SELECT id FROM categories WHERE id = ${parsedCategoryId}`
-    if (categoryExists.length === 0) {
-      return NextResponse.json({ error: "category_id does not match any existing category" }, { status: 422 })
-    }
-
     const result = await sql`
       UPDATE products
       SET sku = ${sku}, name = ${name}, description = ${description}, price = ${parseFloat(price)},
-          available_qty = ${parseInt(available_qty)}, category_id = ${parsedCategoryId},
+          available_qty = ${parseInt(available_qty)}, category_id = ${category_id || null},
           badge = ${badge || null}, is_featured = ${is_featured || false}, 
           images = ${images ? JSON.stringify(images) : null}, 
           product_username = ${product_username || null}, 
