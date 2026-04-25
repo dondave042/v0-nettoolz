@@ -73,9 +73,9 @@ function ProductListRow({ product }: { product: Product }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md">
-      <div className="flex flex-col md:flex-row">
-        <div className="flex h-52 items-center justify-center overflow-hidden bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd] md:h-auto md:w-64 md:flex-shrink-0">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md">
+      <div className="flex items-start gap-3 p-4">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
           {product.images && product.images.length > 0 ? (
             <img
               src={product.images[0]}
@@ -83,14 +83,14 @@ function ProductListRow({ product }: { product: Product }) {
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
-              <Tag className="h-8 w-8" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
+              <Tag className="h-4 w-4" />
             </div>
           )}
         </div>
 
-        <div className="flex flex-1 flex-col justify-between gap-5 p-5 md:flex-row md:items-start md:p-6">
-          <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.18em] text-[#0284c7]">
                 {product.category_name}
@@ -103,14 +103,14 @@ function ProductListRow({ product }: { product: Product }) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xl font-semibold text-foreground">{product.name}</h3>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              <h3 className="text-base font-semibold text-foreground">{product.name}</h3>
+              <p className="max-w-2xl overflow-hidden text-sm leading-5 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                 {product.description}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="text-2xl font-bold text-[#0284c7]">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-lg font-bold text-[#0284c7]">
                 {formatPrice(parseFloat(product.price))}
               </span>
               <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -119,7 +119,7 @@ function ProductListRow({ product }: { product: Product }) {
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-3 md:w-44 md:flex-shrink-0">
+          <div className="flex w-full flex-col gap-2 md:w-40 md:flex-shrink-0">
             <Button
               className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
               disabled={!inStock}
@@ -259,8 +259,8 @@ export function ProductListView({
                           setCategoriesOpen(false)
                         }}
                         className={`block w-full px-4 py-3 text-left text-sm transition-colors ${selectedCategory === null
-                            ? "bg-[#38bdf8]/10 text-[#0284c7]"
-                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                           }`}
                       >
                         All Categories
@@ -274,8 +274,8 @@ export function ProductListView({
                             setCategoriesOpen(false)
                           }}
                           className={`block w-full px-4 py-3 text-left text-sm transition-colors ${selectedCategory === name
-                              ? "bg-[#38bdf8]/10 text-[#0284c7]"
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                             }`}
                         >
                           {name}
@@ -314,8 +314,8 @@ export function ProductListView({
                             setSortMenuOpen(false)
                           }}
                           className={`block w-full px-4 py-2.5 text-left text-sm transition-colors ${sortBy === value
-                              ? "bg-[#38bdf8]/10 text-[#0284c7]"
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                             }`}
                         >
                           {label}
