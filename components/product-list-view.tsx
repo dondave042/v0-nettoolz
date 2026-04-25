@@ -144,7 +144,7 @@ export function ProductListView({
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "featured">("newest")
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
 
