@@ -75,7 +75,7 @@ function ProductListRow({ product }: { product: Product }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md">
       <div className="flex items-start gap-3 p-4">
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
           {product.images && product.images.length > 0 ? (
             <img
               src={product.images[0]}
@@ -83,8 +83,8 @@ function ProductListRow({ product }: { product: Product }) {
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
-              <Tag className="h-4 w-4" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
+              <Tag className="h-5 w-5" />
             </div>
           )}
         </div>

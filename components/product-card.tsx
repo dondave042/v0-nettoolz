@@ -113,7 +113,7 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Card header - Image or Icon */}
-      <div className="flex h-32 items-center justify-center overflow-hidden bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
+      <div className="flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
         {product.images && product.images.length > 0 ? (
           <img
             src={product.images[0]}
@@ -121,8 +121,8 @@ export function ProductCard({ product }: { product: Product }) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
-            <Tag className="h-8 w-8" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
+            <Tag className="h-10 w-10" />
           </div>
         )}
       </div>
