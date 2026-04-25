@@ -11,7 +11,7 @@ export function HeroSection() {
         <div className="absolute right-1/3 top-1/3 h-72 w-72 rounded-full bg-[#0ea5e9] blur-3xl animate-pulse delay-500" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
+      <div className="relative mx-auto max-w-7xl px-4 lg:px-8" style={{ paddingTop: "60px", paddingBottom: "60px", backgroundColor: "rgba(30, 195, 254, 0.84)" }}>
         <div 
           className="flex flex-col items-center gap-16 lg:gap-12"
           style={{
