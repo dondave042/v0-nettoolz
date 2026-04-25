@@ -75,21 +75,26 @@ function ProductListRow({ product }: { product: Product }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md">
       <div className="flex items-start gap-3 p-4">
-        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
-          {product.images && product.images.length > 0 ? (
-            <img
-              src={product.images[0]}
-              alt={product.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
-              <Tag className="h-5 w-5" />
-            </div>
-          )}
+        <div className="flex w-16 flex-shrink-0 flex-col items-center gap-2">
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd]">
+            {product.images && product.images.length > 0 ? (
+              <img
+                src={product.images[0]}
+                alt={product.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-[#0284c7]">
+                <Tag className="h-5 w-5" />
+              </div>
+            )}
+          </div>
+          <span className="text-center text-[10px] leading-3 text-muted-foreground">
+            {inStock ? `${product.available_qty} in stock` : "Out of stock"}
+          </span>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium uppercase tracking-[0.18em] text-[#0284c7]">
@@ -113,21 +118,16 @@ function ProductListRow({ product }: { product: Product }) {
               <span className="text-lg font-bold text-[#0284c7]">
                 {formatPrice(parseFloat(product.price))}
               </span>
-              <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
-                {inStock ? `${product.available_qty} in stock` : "Out of stock"}
-              </span>
+              <Button
+                size="sm"
+                className="h-7 gap-1 px-2 text-[10px] bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+                disabled={!inStock}
+                onClick={handleAddToCart}
+              >
+                <ShoppingCart className="h-3 w-3" />
+                {inStock ? "Add" : "Sold Out"}
+              </Button>
             </div>
-          </div>
-
-          <div className="flex w-full flex-col gap-2 md:w-40 md:flex-shrink-0">
-            <Button
-              className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
-              disabled={!inStock}
-              onClick={handleAddToCart}
-            >
-              <ShoppingCart className="h-4 w-4" />
-              {inStock ? "Add to Cart" : "Sold Out"}
-            </Button>
           </div>
         </div>
       </div>
