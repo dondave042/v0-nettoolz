@@ -70,7 +70,7 @@ export function SiteHeader() {
             alt="NETTOOLZ logo"
             className="h-10 w-10 rounded-full object-cover"
           />
-          <span className="font-[var(--font-heading)] text-xl font-bold tracking-tight text-foreground">
+          <span className="font-[var(--font-heading)] text-xl font-extrabold tracking-tight text-sky-500">
             NETTOOLZ
           </span>
         </Link>
