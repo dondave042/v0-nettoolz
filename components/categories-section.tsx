@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Users, Play, Gamepad2, Mail, Shield, Cloud, ChevronDown } from "lucide-react"
 import { getDb } from "@/lib/db"
+import { HomepageProductsGrid } from "@/components/homepage-products-grid"
 
 const iconMap: Record<string, React.ElementType> = {
   Users, Play, Gamepad2, Mail, Shield, Cloud,
@@ -40,6 +41,7 @@ export async function CategoriesSection() {
           </p>
         </div>
 
+        <HomepageProductsGrid />
         <CategoriesToggle categories={categories} />
       </div>
     </section>

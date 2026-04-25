@@ -1,4 +1,4 @@
-import { ArrowRight, Shield, Zap, Clock, Star } from "lucide-react"
+import { ArrowRight, Shield, Zap, Clock, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function HeroSection() {
@@ -11,46 +11,21 @@ export function HeroSection() {
         <div className="absolute right-1/3 top-1/3 h-72 w-72 rounded-full bg-[#0ea5e9] blur-3xl animate-pulse delay-500" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
-        <div 
-          className="flex flex-col items-center gap-16 lg:gap-12"
-          style={{
-            fontSize: "12px",
-            fontWeight: "500",
-          }}
-        >
+      <div className="relative mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-24">
+        <div className="flex flex-col items-center gap-12 lg:gap-10">
           {/* Text content */}
-          <div 
-            className="max-w-3xl text-center"
-            style={{
-              textTransform: "capitalize",
-              textAlign: "center",
-              fontSize: "10px",
-              backgroundColor: "#3d69cc",
-              borderRadius: "0px",
-              borderColor: "#199bdf",
-            }}
-          >
+          <div className="max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
-              <Star className="h-4 w-4" />
-              Trusted by 50,000+ Happy Customers Worldwide
+              <Sparkles className="h-4 w-4" />
+              Premium Digital Products
             </div>
             <h1 className="mb-8 text-balance font-[var(--font-heading)] text-5xl font-extrabold leading-tight tracking-tight text-white md:text-6xl lg:text-7xl">
-              Get Premium Digital Accounts{" "}
-              <span className="relative">
-                <span className="absolute inset-x-0 bottom-2 h-3 bg-[#38bdf8]/40 blur-xl"></span>
-                <span className="relative text-[#38bdf8]">Instantly</span>
-              </span>
+              Shop NETTOOLZ
             </h1>
             <p className="mb-10 max-w-2xl text-pretty text-lg leading-relaxed text-[#bae6fd] md:text-xl">
-              Access premium accounts across all platforms. Verified sellers, instant delivery, and lifetime support. Join thousands of satisfied customers today.
+              Browse our catalog of premium accounts, tools, and licenses. Instant delivery after purchase.
             </p>
-            <div 
-              className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-5"
-              style={{
-                textTransform: "capitalize",
-              }}
-            >
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-5">
               <Button
                 size="lg"
                 className="gap-2 bg-[#38bdf8] text-[#0c4a6e] hover:bg-[#7dd3fc]"
