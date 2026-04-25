@@ -108,14 +108,22 @@ export function SiteHeader() {
           </div>
 
           {!loading && !buyer && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
-              onClick={() => router.push('/login')}
-            >
-              Login
-            </Button>
+            <div className="flex flex-col items-end gap-1 md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/login')}
+              >
+                Login
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/wallet')}
+              >
+                Wallet
+              </Button>
+            </div>
           )}
 
           {!loading && buyer && (
