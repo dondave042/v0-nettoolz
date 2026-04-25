@@ -7,8 +7,18 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
       <main className="flex-1">
+        <section className="bg-gradient-to-br from-[#0c4a6e] to-[#0c1e2d] px-4 py-16 text-center">
+          <div className="mx-auto max-w-4xl">
+            <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
+              NETTOOLZ
+            </h1>
+            <p className="mx-auto max-w-2xl text-lg text-[#7dd3fc] md:text-xl">
+              Your ultimate destination for premium digital accounts, tools, and licenses. Trusted by thousands of customer
+            </p>
+          </div>
+        </section>
         <ProductListView
-          showHeader={true}
+          showHeader={false}
           title="Product Catalog"
           description="Browse our full catalog of premium digital accounts, tools, and licenses. Instant delivery after purchase."
         />
