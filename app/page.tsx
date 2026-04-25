@@ -12,9 +12,11 @@ export default function HomePage() {
             <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
               NETTOOLZ
             </h1>
-            <p className="mx-auto max-w-2xl text-lg text-[#7dd3fc] md:text-xl">
-              Your ultimate destination for premium digital accounts, tools, and licenses. Trusted by thousands of customer
-            </p>
+            <div className="mx-auto max-w-2xl rounded-2xl bg-sky-300/90 px-6 py-4 shadow-lg shadow-sky-950/20">
+              <p className="text-lg font-medium text-sky-950 md:text-xl">
+                Your ultimate destination for premium digital accounts, tools, and licenses. Trusted by thousands of customer
+              </p>
+            </div>
           </div>
         </section>
         <ProductListView
