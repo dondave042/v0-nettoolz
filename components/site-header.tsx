@@ -90,6 +90,54 @@ export function SiteHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden"
+            onClick={() => router.push('/wallet')}
+          >
+            Wallet
+          </Button>
+
+          <div className="relative md:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCartOpen(!cartOpen)}
+              aria-label="Cart"
+              className="relative"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#38bdf8] text-xs font-bold text-white">
+                  {totalItems}
+                </span>
+              )}
+            </Button>
+          </div>
+
+          {!loading && !buyer && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => router.push('/login')}
+            >
+              Login
+            </Button>
+          )}
+
+          {!loading && buyer && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => router.push('/dashboard')}
+            >
+              Dashboard
+            </Button>
+          )}
+
           {/* Cart Button */}
           <div className="relative hidden md:flex">
             <Button
