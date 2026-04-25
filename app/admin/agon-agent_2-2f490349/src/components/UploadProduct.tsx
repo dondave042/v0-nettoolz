@@ -1,10 +1,15 @@
 import { CheckCircle2, KeyRound, Package, Plus, Trash2 } from "lucide-react"
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Account, Platform, Product } from "../types"
 
 interface UploadProductProps {
     onAddProduct: (product: Product) => Promise<void> | void
+}
+
+type CategoryOption = {
+    id: number
+    name: string
 }
 
 const emptyAccount: Omit<Account, "id"> = {
@@ -18,6 +23,11 @@ const emptyAccount: Omit<Account, "id"> = {
 export default function UploadProduct({ onAddProduct }: UploadProductProps) {
     const [productName, setProductName] = useState("")
     const [category, setCategory] = useState("")
+    const [categories, setCategories] = useState<CategoryOption[]>([])
+    const [loadingCategories, setLoadingCategories] = useState(true)
+    const [showAddCategory, setShowAddCategory] = useState(false)
+    const [newCategoryName, setNewCategoryName] = useState("")
+    const [addingCategory, setAddingCategory] = useState(false)
     const [platform, setPlatform] = useState<Platform>("instagram")
     const [price, setPrice] = useState("")
     const [description, setDescription] = useState("")
@@ -27,6 +37,67 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
     const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
     const [accounts, setAccounts] = useState<Omit<Account, "id">[]>([{ ...emptyAccount }])
     const [submitted, setSubmitted] = useState(false)
+
+    useEffect(() => {
+        fetchCategories()
+    }, [])
+
+    async function fetchCategories() {
+        setLoadingCategories(true)
+        try {
+            const response = await fetch("/api/admin/categories", { cache: "no-store" })
+            if (!response.ok) {
+                throw new Error("Failed to load categories")
+            }
+
+            const payload = await response.json()
+            const list = Array.isArray(payload) ? payload : []
+            const mapped = list
+                .map((entry) => ({ id: Number(entry.id), name: String(entry.name || "") }))
+                .filter((entry) => Number.isFinite(entry.id) && entry.name)
+
+            setCategories(mapped)
+        } catch (error) {
+            console.error("[UploadProduct] Failed to load categories:", error)
+        } finally {
+            setLoadingCategories(false)
+        }
+    }
+
+    async function handleAddCategory() {
+        const trimmed = newCategoryName.trim().toUpperCase()
+        if (!trimmed) return
+
+        setAddingCategory(true)
+        try {
+            const response = await fetch("/api/admin/categories", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: trimmed }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok) {
+                throw new Error(String(payload?.error || "Failed to add category"))
+            }
+
+            const created = {
+                id: Number(payload.id),
+                name: String(payload.name || trimmed),
+            }
+            setCategories((previous) => {
+                const exists = previous.some((entry) => entry.name.toLowerCase() === created.name.toLowerCase())
+                return exists ? previous : [...previous, created]
+            })
+            setCategory(created.name)
+            setNewCategoryName("")
+            setShowAddCategory(false)
+        } catch (error) {
+            console.error("[UploadProduct] Failed to add category:", error)
+        } finally {
+            setAddingCategory(false)
+        }
+    }
 
     async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
         const selectedFile = event.target.files?.[0]
@@ -123,6 +194,8 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
             setSubmitted(true)
             setProductName("")
             setCategory("")
+            setShowAddCategory(false)
+            setNewCategoryName("")
             setPlatform("instagram")
             setPrice("")
             setDescription("")
@@ -163,7 +236,56 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <input value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Product name" className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white" required />
-                    <input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white" required />
+                    <div className="space-y-2">
+                        <select
+                            value={category}
+                            onChange={(event) => {
+                                if (event.target.value === "__add_new__") {
+                                    setShowAddCategory(true)
+                                    return
+                                }
+                                setCategory(event.target.value)
+                            }}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white"
+                            required
+                            disabled={loadingCategories}
+                        >
+                            <option value="">{loadingCategories ? "Loading categories..." : "Select category"}</option>
+                            {categories.map((entry) => (
+                                <option key={entry.id} value={entry.name}>{entry.name}</option>
+                            ))}
+                            <option value="__add_new__">+ Add more category</option>
+                        </select>
+
+                        {showAddCategory && (
+                            <div className="flex gap-2">
+                                <input
+                                    value={newCategoryName}
+                                    onChange={(event) => setNewCategoryName(event.target.value)}
+                                    placeholder="Enter new category name"
+                                    className="flex-1 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-white"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddCategory}
+                                    disabled={addingCategory || !newCategoryName.trim()}
+                                    className="rounded-lg border border-cyan-500/40 bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-300 disabled:opacity-60"
+                                >
+                                    {addingCategory ? "Adding..." : "Add"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowAddCategory(false)
+                                        setNewCategoryName("")
+                                    }}
+                                    className="rounded-lg border border-slate-600 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-300"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <select value={platform} onChange={(event) => setPlatform(event.target.value as Platform)} className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white">
                         {(["instagram", "facebook", "twitter", "tiktok", "youtube", "linkedin", "telegram", "other"] as Platform[]).map((entry) => (
                             <option key={entry} value={entry}>{entry}</option>
