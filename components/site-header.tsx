@@ -90,15 +90,6 @@ export function SiteHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden"
-            onClick={() => router.push('/wallet')}
-          >
-            Wallet
-          </Button>
-
           <div className="relative md:hidden">
             <Button
               variant="ghost"
@@ -216,7 +207,7 @@ export function SiteHeader() {
       {/* Mobile Nav */}
       {mobileOpen && (
         <nav className="border-t border-border bg-card px-4 pb-4 md:hidden" aria-label="Mobile navigation">
-          {navLinks.map((link) => (
+          {navLinks.filter((link) => link.href !== '/wallet').map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -272,6 +263,13 @@ export function SiteHeader() {
                       className="block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
                     >
                       Login
+                    </Link>
+                    <Link
+                      href="/wallet"
+                      onClick={() => setMobileOpen(false)}
+                      className="block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                    >
+                      Wallet
                     </Link>
                     <Link
                       href="/signup"

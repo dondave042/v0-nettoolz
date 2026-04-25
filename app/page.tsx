@@ -9,7 +9,7 @@ export default function HomePage() {
       <main className="flex-1">
         <section className="bg-gradient-to-br from-[#0c4a6e] to-[#0c1e2d] px-4 py-16 text-center">
           <div className="mx-auto max-w-4xl">
-            <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
+            <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-sky-300 md:text-6xl">
               NETTOOLZ
             </h1>
             <div className="mx-auto max-w-2xl rounded-2xl bg-sky-300/90 px-6 py-4 shadow-lg shadow-sky-950/20">
