@@ -105,7 +105,9 @@ export async function PUT(request: Request) {
       WHERE id = ${id}
       RETURNING *
     `
-    return NextResponse.json(result[0])
+    const syncedQty = await syncStockFromCredentials(sql, Number(id))
+    const product = syncedQty !== null ? { ...result[0], available_qty: syncedQty } : result[0]
+    return NextResponse.json(product)
   } catch (error) {
     console.error("Update product error:", error)
     return NextResponse.json({ error: "Failed to update product" }, { status: 500 })
