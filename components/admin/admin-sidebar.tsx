@@ -17,13 +17,21 @@ import {
   KeyRound,
   Settings,
   Tag,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
 
-const links = [
+const topLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/products", label: "Products", icon: Package },
+]
+
+const productsSubLinks = [
+  { href: "/admin/products", label: "All Products", icon: Package },
   { href: "/admin/categories", label: "Categories", icon: Tag },
+]
+
+const bottomLinks = [
   { href: "/admin/payment-methods", label: "Payment Methods", icon: CreditCard },
   { href: "/admin/credentials-inventory", label: "Credentials", icon: KeyRound },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -36,6 +44,9 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [productsOpen, setProductsOpen] = useState(
+    pathname.startsWith("/admin/products") || pathname.startsWith("/admin/categories")
+  )
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" })
@@ -49,6 +60,9 @@ export function AdminSidebar() {
     return pathname === href || pathname.startsWith(`${href}/`)
   }
 
+  const isProductsGroupActive =
+    pathname.startsWith("/admin/products") || pathname.startsWith("/admin/categories")
+
   const navigation = (
     <>
       <div className="flex items-center gap-3 border-b border-[#075985] px-5 py-4">
@@ -57,17 +71,68 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4" aria-label="Admin navigation">
-        {links.map(({ href, label, icon: Icon }) => {
+        {topLinks.map(({ href, label, icon: Icon }) => {
           const isActive = isLinkActive(href)
           return (
             <Link
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive
-                  ? "bg-[#38bdf8] text-[#0c4a6e]"
-                  : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
-                }`}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? "bg-[#38bdf8] text-[#0c4a6e]" : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              {label}
+            </Link>
+          )
+        })}
+
+        {/* Products expandable group */}
+        <button
+          onClick={() => setProductsOpen((o) => !o)}
+          className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            isProductsGroupActive ? "bg-[#38bdf8] text-[#0c4a6e]" : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
+          }`}
+        >
+          <span className="flex items-center gap-3">
+            <Package className="h-5 w-5" />
+            Products
+          </span>
+          {productsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+
+        {productsOpen && (
+          <div className="ml-4 flex flex-col gap-1 border-l border-[#075985] pl-3">
+            {productsSubLinks.map(({ href, label, icon: Icon }) => {
+              const isActive = isLinkActive(href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive ? "bg-[#38bdf8] text-[#0c4a6e]" : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              )
+            })}
+          </div>
+        )}
+
+        {bottomLinks.map(({ href, label, icon: Icon }) => {
+          const isActive = isLinkActive(href)
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? "bg-[#38bdf8] text-[#0c4a6e]" : "text-[#7dd3fc] hover:bg-[#075985] hover:text-white"
+              }`}
             >
               <Icon className="h-5 w-5" />
               {label}
