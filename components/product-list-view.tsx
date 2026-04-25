@@ -74,7 +74,7 @@ function ProductListRow({ product }: { product: Product }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md">
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row-reverse">
         <div className="flex h-52 items-center justify-center overflow-hidden bg-gradient-to-br from-[#e0f2fe] to-[#bae6fd] md:h-auto md:w-64 md:flex-shrink-0">
           {product.images && product.images.length > 0 ? (
             <img
