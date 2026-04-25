@@ -3,19 +3,36 @@ import { getDb } from "@/lib/db"
 import { getAdminSession } from "@/lib/admin-auth"
 
 async function syncStockFromCredentials(sql: ReturnType<typeof getDb>, productId: number): Promise<number | null> {
-  const rows = await sql`
-    SELECT COUNT(*) AS count
-    FROM buyer_credentials_inventory
-    WHERE product_id = ${productId}
-      AND assigned_to_buyer_id IS NULL
-  `
+  // Check total credential count for this product
   const total = await sql`
     SELECT COUNT(*) AS count
     FROM buyer_credentials_inventory
     WHERE product_id = ${productId}
   `
-  // Only sync if the product actually has credentials in inventory
   if (Number(total[0]?.count ?? 0) === 0) return null
+
+  // Check if distributed_to_buyer_id column exists
+  const colCheck = await sql`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'buyer_credentials_inventory'
+      AND column_name = 'distributed_to_buyer_id'
+  `
+  const hasDistributed = colCheck.length > 0
+
+  const rows = hasDistributed
+    ? await sql`
+        SELECT COUNT(*) AS count
+        FROM buyer_credentials_inventory
+        WHERE product_id = ${productId}
+          AND assigned_to_buyer_id IS NULL
+          AND distributed_to_buyer_id IS NULL
+      `
+    : await sql`
+        SELECT COUNT(*) AS count
+        FROM buyer_credentials_inventory
+        WHERE product_id = ${productId}
+          AND assigned_to_buyer_id IS NULL
+      `
 
   const unassigned = Number(rows[0]?.count ?? 0)
   await sql`
