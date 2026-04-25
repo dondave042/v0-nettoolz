@@ -2,6 +2,28 @@ import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 import { getAdminSession } from "@/lib/admin-auth"
 
+async function syncStockFromCredentials(sql: ReturnType<typeof getDb>, productId: number): Promise<number | null> {
+  const rows = await sql`
+    SELECT COUNT(*) AS count
+    FROM buyer_credentials_inventory
+    WHERE product_id = ${productId}
+      AND assigned_to_buyer_id IS NULL
+  `
+  const total = await sql`
+    SELECT COUNT(*) AS count
+    FROM buyer_credentials_inventory
+    WHERE product_id = ${productId}
+  `
+  // Only sync if the product actually has credentials in inventory
+  if (Number(total[0]?.count ?? 0) === 0) return null
+
+  const unassigned = Number(rows[0]?.count ?? 0)
+  await sql`
+    UPDATE products SET available_qty = ${unassigned}, updated_at = NOW() WHERE id = ${productId}
+  `
+  return unassigned
+}
+
 const rolesAllowedToManageCatalog = new Set([
   "admin",
   "super_admin",
@@ -49,7 +71,10 @@ export async function POST(request: Request) {
       VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${product_username || null}, ${product_password || null})
       RETURNING *
     `
-    return NextResponse.json(result[0], { status: 201 })
+    const newProductId = Number(result[0]?.id)
+    const syncedQty = await syncStockFromCredentials(sql, newProductId)
+    const product = syncedQty !== null ? { ...result[0], available_qty: syncedQty } : result[0]
+    return NextResponse.json(product, { status: 201 })
   } catch (error) {
     console.error("Create product error:", error)
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
