@@ -45,11 +45,10 @@ export function ProductListView({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "featured">("newest")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-
-const [sortMenuOpen, setSortMenuOpen] = useState(false)
+    const [sortMenuOpen, setSortMenuOpen] = useState(false)
     const [categoriesOpen, setCategoriesOpen] = useState(false)
 
-    // Derive categories
+  // Derive categories
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category_name).filter(Boolean))],
     [products]
@@ -138,65 +137,139 @@ const [sortMenuOpen, setSortMenuOpen] = useState(false)
 
             {/* Category Filter and Controls */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedCategory(null)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                    selectedCategory === null
-                      ? "bg-[#38bdf8] text-white"
-                      : "bg-muted text-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  All
-                </button>
-                {categories.map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => setSelectedCategory(name)}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      selectedCategory === name
-                        ? "bg-[#38bdf8] text-white"
-                        : "bg-muted text-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Sort and View Controls */}
-              <div className="flex items-center gap-3">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                >
-                  <option value="newest">Newest</option>
-                  <option value="featured">Featured</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                </select>
-
-                <div className="flex items-center gap-1 border-l border-border pl-3">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Grid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ListIcon className="h-4 w-4" />
-                  </Button>
+    <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+            <button
+                type="button"
+                onClick={() => setCategoriesOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span>{selectedCategory ?? "All Categories"}</span>
+                <ChevronDown
+                    className={`h-4 w-4 transition-transform ${categoriesOpen ? "rotate-180" : ""
+                        }`}
+                />
+            </button>
+            {categoriesOpen && (
+                <div className="absolute left-0 top-full z-20 mt-2 min-w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSelectedCategory(null)
+                            setCategoriesOpen(false)
+                        }}
+                        className={`block w-full px-4 py-3 text-left text-sm transition-colors ${selectedCategory === null
+                                ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            }`}
+                    >
+                        All Categories
+                    </button>
+                    {categories.map((name) => (
+                        <button
+                            key={name}
+                            type="button"
+                            onClick={() => {
+                                setSelectedCategory(name)
+                                setCategoriesOpen(false)
+                            }}
+                            className={`block w-full px-4 py-3 text-left text-sm transition-colors ${selectedCategory === name
+                                    ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                }`}
+                        >
+                            {name}
+                        </button>
+                    ))}
                 </div>
-              </div>
-            </div>
+            )}
+        </div>
+    </div>
+
+    {/* Sort and View Controls */}
+    <div className="flex items-center gap-3">
+        <div className="relative">
+            <button
+                onClick={() => setSortMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+                <span>
+                    Sort by:{" "}
+                    <span className="font-semibold">
+                        {
+                            {
+                                newest: "Newest",
+                                featured: "Featured",
+                                "price-low": "Price: Low to High",
+                                "price-high": "Price: High to Low",
+                            }[sortBy]
+                        }
+                    </span>
+                </span>
+                <ChevronDown
+                    className={`h-4 w-4 transition-transform ${sortMenuOpen ? "rotate-180" : ""
+                        }`}
+                />
+            </button>
+            {sortMenuOpen && (
+                <div className="absolute right-0 top-full z-20 mt-2 min-w-60 overflow-hidden rounded-2xl border border-border bg-card py-2 shadow-lg">
+                    {[
+                        { value: "newest", label: "Newest" },
+                        { value: "featured", label: "Featured" },
+                        {
+                            value: "price-low",
+                            label: "Price: Low to High",
+                        },
+                        {
+                            value: "price-high",
+                            label: "Price: High to Low",
+                        },
+                    ].map(({ value, label }) => (
+                        <button
+                            key={value}
+                            onClick={() => {
+                                setSortBy(
+                                    value as typeof sortBy
+                                )
+                                setSortMenuOpen(false)
+                            }}
+                            className={`block w-full px-4 py-2.5 text-left text-sm transition-colors ${sortBy === value
+                                    ? "bg-[#38bdf8]/10 text-[#0284c7]"
+                                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+
+        <div className="flex items-center gap-1 border-l border-border pl-3">
+            <Button
+                variant={
+                    viewMode === "grid" ? "secondary" : "ghost"
+                }
+                size="icon"
+                onClick={() => setViewMode("grid")}
+                className="h-9 w-9 rounded-full"
+            >
+                <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+                variant={
+                    viewMode === "list" ? "secondary" : "ghost"
+                }
+                size="icon"
+                onClick={() => setViewMode("list")}
+                className="h-9 w-9 rounded-full"
+            >
+                <ListIcon className="h-4 w-4" />
+            </Button>
+        </div>
+    </div>
+</div>
           </div>
         </div>
       </div>
