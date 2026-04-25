@@ -104,7 +104,7 @@ function ProductListRow({ product }: { product: Product }) {
 
             <div className="space-y-2">
               <h3 className="text-base font-semibold text-foreground">{product.name}</h3>
-              <p className="max-w-2xl overflow-hidden text-sm leading-5 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+              <p className="max-w-2xl overflow-hidden text-[7px] leading-3 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                 {product.description}
               </p>
             </div>

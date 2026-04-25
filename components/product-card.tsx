@@ -133,7 +133,7 @@ export function ProductCard({ product }: { product: Product }) {
           {product.category_name}
         </p>
         <h3 className="mb-2 font-semibold text-foreground">{product.name}</h3>
-        <p className="mb-4 flex-1 text-sm leading-relaxed text-muted-foreground">
+        <p className="mb-4 flex-1 text-[7px] leading-3 text-muted-foreground">
           {product.description}
         </p>
 
