@@ -4,7 +4,14 @@ import { useState, useMemo } from "react"
 import { ProductCard } from "@/components/product-card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Search, Grid, List as ListIcon } from "lucide-react"
+import {
+    Loader2,
+    Search,
+    Grid,
+    List as ListIcon,
+    ChevronDown,
+    Filter,
+} from "lucide-react"
 import { useProducts } from "@/hooks/use-products"
 
 interface Product {
@@ -39,7 +46,10 @@ export function ProductListView({
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "featured">("newest")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
-  // Derive categories
+const [sortMenuOpen, setSortMenuOpen] = useState(false)
+    const [categoriesOpen, setCategoriesOpen] = useState(false)
+
+    // Derive categories
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category_name).filter(Boolean))],
     [products]
