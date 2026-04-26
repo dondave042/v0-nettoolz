@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, Check, X, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -9,16 +9,20 @@ import { toast } from "sonner"
 interface Category {
     id: number
     name: string
+    description: string | null
     sort_order: number
+    product_count?: number
 }
 
 export default function CategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
     const [newName, setNewName] = useState("")
+    const [newDescription, setNewDescription] = useState("")
     const [adding, setAdding] = useState(false)
     const [editId, setEditId] = useState<number | null>(null)
     const [editName, setEditName] = useState("")
+    const [editDescription, setEditDescription] = useState("")
     const [saving, setSaving] = useState(false)
     const [deletingId, setDeletingId] = useState<number | null>(null)
 
@@ -43,6 +47,11 @@ export default function CategoriesPage() {
         }
     }
 
+    function resetForm() {
+        setNewName("")
+        setNewDescription("")
+    }
+
     async function handleAdd() {
         const trimmed = newName.trim()
         if (!trimmed) return
@@ -51,7 +60,10 @@ export default function CategoriesPage() {
             const res = await fetch("/api/admin/categories", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: trimmed }),
+                body: JSON.stringify({ 
+                    name: trimmed,
+                    description: newDescription.trim() || null
+                }),
             })
             const data = await res.json()
             if (!res.ok) {
@@ -59,7 +71,7 @@ export default function CategoriesPage() {
                 return
             }
             setCategories((prev) => [...prev, data as Category])
-            setNewName("")
+            resetForm()
             toast.success(`Category "${(data as Category).name}" added`)
         } catch {
             toast.error("Failed to add category")
@@ -71,11 +83,13 @@ export default function CategoriesPage() {
     function startEdit(cat: Category) {
         setEditId(cat.id)
         setEditName(cat.name)
+        setEditDescription(cat.description || "")
     }
 
     function cancelEdit() {
         setEditId(null)
         setEditName("")
+        setEditDescription("")
     }
 
     async function handleSaveEdit(id: number) {
@@ -86,7 +100,11 @@ export default function CategoriesPage() {
             const res = await fetch("/api/admin/categories", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, name: trimmed }),
+                body: JSON.stringify({ 
+                    id, 
+                    name: trimmed,
+                    description: editDescription.trim() || null
+                }),
             })
             const data = await res.json()
             if (!res.ok) {
@@ -129,31 +147,45 @@ export default function CategoriesPage() {
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6 p-6">
+        <div className="mx-auto max-w-3xl space-y-6 p-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Categories</h1>
-                <p className="mt-1 text-sm text-sky-300">
-                    Manage product categories. Default categories are auto-created on first load.
+                <h1 className="text-3xl font-bold text-white">Product Categories</h1>
+                <p className="mt-2 text-sm text-sky-300">
+                    Create and manage product categories. Default categories are auto-created on first load. Categories must be created before uploading products.
                 </p>
             </div>
 
-            {/* Add new category */}
-            <div className="flex gap-2">
-                <Input
-                    placeholder="New category name…"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                    className="bg-[#0c4a6e] border-[#075985] text-white placeholder:text-sky-400"
-                    disabled={adding}
-                />
+            {/* Add new category form */}
+            <div className="rounded-lg border border-[#075985] bg-[#0c4a6e] p-4 space-y-3">
+                <div>
+                    <label className="text-sm font-medium text-sky-300">Category Name *</label>
+                    <Input
+                        placeholder="e.g., Gaming, Electronics, Software…"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                        className="mt-1 bg-[#082f49] border-[#0ea5e9] text-white placeholder:text-sky-400"
+                        disabled={adding}
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-sky-300">Description (Optional)</label>
+                    <Input
+                        placeholder="Describe what products belong in this category…"
+                        value={newDescription}
+                        onChange={(e) => setNewDescription(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAdd()}
+                        className="mt-1 bg-[#082f49] border-[#0ea5e9] text-white placeholder:text-sky-400"
+                        disabled={adding}
+                    />
+                </div>
                 <Button
                     onClick={handleAdd}
                     disabled={adding || !newName.trim()}
-                    className="bg-sky-600 hover:bg-sky-500 text-white shrink-0"
+                    className="w-full bg-sky-600 hover:bg-sky-500 text-white"
                 >
                     {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                    <span className="ml-1">Add</span>
+                    <span className="ml-2">Create Category</span>
                 </Button>
             </div>
 
@@ -164,71 +196,103 @@ export default function CategoriesPage() {
                         <Loader2 className="h-6 w-6 animate-spin text-sky-400" />
                     </div>
                 ) : categories.length === 0 ? (
-                    <p className="py-10 text-center text-sm text-sky-400">No categories yet.</p>
+                    <div className="py-12 text-center">
+                        <Package className="h-8 w-8 mx-auto mb-3 text-sky-400 opacity-50" />
+                        <p className="text-sm text-sky-400">No categories yet. Create one to get started.</p>
+                    </div>
                 ) : (
-                    <ul className="divide-y divide-[#075985]">
+                    <div className="divide-y divide-[#075985]">
                         {categories.map((cat) => (
-                            <li key={cat.id} className="flex items-center gap-3 px-4 py-3">
+                            <div key={cat.id} className="px-4 py-4 hover:bg-[#082f49] transition-colors">
                                 {editId === cat.id ? (
-                                    <>
-                                        <Input
-                                            value={editName}
-                                            onChange={(e) => setEditName(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") handleSaveEdit(cat.id)
-                                                if (e.key === "Escape") cancelEdit()
-                                            }}
-                                            className="flex-1 bg-[#082f49] border-[#0ea5e9] text-white"
-                                            autoFocus
-                                        />
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-green-400 hover:text-green-300"
-                                            onClick={() => handleSaveEdit(cat.id)}
-                                            disabled={saving}
-                                        >
-                                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                        </Button>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-sky-400 hover:text-sky-300"
-                                            onClick={cancelEdit}
-                                            disabled={saving}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-xs font-medium text-sky-300">Name</label>
+                                            <Input
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") handleSaveEdit(cat.id)
+                                                    if (e.key === "Escape") cancelEdit()
+                                                }}
+                                                className="mt-1 bg-[#082f49] border-[#0ea5e9] text-white"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-medium text-sky-300">Description</label>
+                                            <Input
+                                                value={editDescription}
+                                                onChange={(e) => setEditDescription(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Escape") cancelEdit()
+                                                }}
+                                                className="mt-1 bg-[#082f49] border-[#0ea5e9] text-white"
+                                                placeholder="Add a description…"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2 justify-end">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="text-sky-400 hover:text-sky-300"
+                                                onClick={cancelEdit}
+                                                disabled={saving}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="bg-green-600 hover:bg-green-500 text-white"
+                                                onClick={() => handleSaveEdit(cat.id)}
+                                                disabled={saving}
+                                            >
+                                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                                {saving ? " Saving..." : " Save"}
+                                            </Button>
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <>
-                                        <span className="flex-1 font-medium text-white">{cat.name}</span>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-sky-400 hover:text-sky-300"
-                                            onClick={() => startEdit(cat)}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="text-red-400 hover:text-red-300"
-                                            onClick={() => handleDelete(cat)}
-                                            disabled={deletingId === cat.id}
-                                        >
-                                            {deletingId === cat.id ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="h-4 w-4" />
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <Package className="h-4 w-4 text-sky-400 flex-shrink-0" />
+                                                <span className="font-medium text-white truncate">{cat.name}</span>
+                                            </div>
+                                            {cat.description && (
+                                                <p className="mt-1 text-sm text-sky-400 line-clamp-2">{cat.description}</p>
                                             )}
-                                        </Button>
-                                    </>
+                                        </div>
+                                        <div className="flex gap-1 flex-shrink-0">
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="text-sky-400 hover:text-sky-300"
+                                                onClick={() => startEdit(cat)}
+                                                title="Edit category"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="text-red-400 hover:text-red-300"
+                                                onClick={() => handleDelete(cat)}
+                                                disabled={deletingId === cat.id}
+                                                title="Delete category"
+                                            >
+                                                {deletingId === cat.id ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
                                 )}
-                            </li>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 )}
             </div>
         </div>
