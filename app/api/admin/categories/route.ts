@@ -43,19 +43,21 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    const { name } = await request.json()
+    const { name, description } = await request.json()
     const trimmed = typeof name === "string" ? name.trim().toUpperCase() : ""
     if (!trimmed) {
       return NextResponse.json({ error: "Category name is required" }, { status: 400 })
     }
+
+    const desc = typeof description === "string" ? description.trim() || null : null
 
     const sql = getDb()
     const maxRow = await sql`SELECT COALESCE(MAX(sort_order), 0) AS max FROM categories`
     const nextOrder = Number((maxRow[0] as { max: number }).max) + 1
 
     const result = await sql`
-      INSERT INTO categories (name, sort_order)
-      VALUES (${trimmed}, ${nextOrder})
+      INSERT INTO categories (name, description, sort_order)
+      VALUES (${trimmed}, ${desc}, ${nextOrder})
       RETURNING *
     `
     return NextResponse.json(result[0], { status: 201 })
@@ -73,15 +75,18 @@ export async function PUT(request: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    const { id, name } = await request.json()
+    const { id, name, description } = await request.json()
     const trimmed = typeof name === "string" ? name.trim().toUpperCase() : ""
     if (!id || !trimmed) {
       return NextResponse.json({ error: "ID and name are required" }, { status: 400 })
     }
 
+    const desc = typeof description === "string" ? description.trim() || null : null
+
     const sql = getDb()
     const result = await sql`
-      UPDATE categories SET name = ${trimmed}, updated_at = NOW()
+      UPDATE categories 
+      SET name = ${trimmed}, description = ${desc}, updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
     `
