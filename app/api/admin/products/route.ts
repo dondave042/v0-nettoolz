@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
+    const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password, credentials } = body
 
     const sql = getDb()
     const result = await sql`
@@ -89,6 +89,19 @@ export async function POST(request: Request) {
       RETURNING *
     `
     const newProductId = Number(result[0]?.id)
+
+    // Insert credentials if provided
+    if (Array.isArray(credentials) && credentials.length > 0) {
+      for (const cred of credentials) {
+        if (cred.username || cred.password) {
+          await sql`
+            INSERT INTO buyer_credentials_inventory (product_id, username, password)
+            VALUES (${newProductId}, ${cred.username || ""}, ${cred.password || ""})
+          `
+        }
+      }
+    }
+
     const syncedQty = await syncStockFromCredentials(sql, newProductId)
     const product = syncedQty !== null ? { ...result[0], available_qty: syncedQty } : result[0]
     return NextResponse.json(product, { status: 201 })
@@ -107,7 +120,7 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json()
-    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
+    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password, credentials } = body
 
     const sql = getDb()
     const result = await sql`
@@ -122,6 +135,42 @@ export async function PUT(request: Request) {
       WHERE id = ${id}
       RETURNING *
     `
+
+    // Handle credentials: delete old ones and insert new ones
+    if (Array.isArray(credentials) && credentials.length > 0) {
+      // Get existing credential IDs from the form
+      const existingIds = credentials
+        .filter((cred) => cred.id)
+        .map((cred) => Number(cred.id))
+
+      // Delete credentials that were removed (not in the new list)
+      if (existingIds.length > 0) {
+        await sql`
+          DELETE FROM buyer_credentials_inventory
+          WHERE product_id = ${Number(id)}
+            AND id NOT IN (${sql(existingIds)})
+            AND assigned_to_buyer_id IS NULL
+        `
+      } else {
+        // If no IDs provided, delete all unassigned credentials for this product
+        await sql`
+          DELETE FROM buyer_credentials_inventory
+          WHERE product_id = ${Number(id)}
+            AND assigned_to_buyer_id IS NULL
+        `
+      }
+
+      // Insert new credentials
+      for (const cred of credentials) {
+        if (!cred.id && (cred.username || cred.password)) {
+          await sql`
+            INSERT INTO buyer_credentials_inventory (product_id, username, password)
+            VALUES (${Number(id)}, ${cred.username || ""}, ${cred.password || ""})
+          `
+        }
+      }
+    }
+
     const syncedQty = await syncStockFromCredentials(sql, Number(id))
     const product = syncedQty !== null ? { ...result[0], available_qty: syncedQty } : result[0]
     return NextResponse.json(product)

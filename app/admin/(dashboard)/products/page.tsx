@@ -49,6 +49,12 @@ type InventoryCredential = {
     created_at: string
 }
 
+type ProductCredential = {
+    id?: string
+    username: string
+    password: string
+}
+
 type ProductForm = {
     sku: string
     name: string
@@ -61,6 +67,7 @@ type ProductForm = {
     image_url: string
     product_username: string
     product_password: string
+    credentials: ProductCredential[]
 }
 
 const emptyForm: ProductForm = {
@@ -75,6 +82,7 @@ const emptyForm: ProductForm = {
     image_url: "",
     product_username: "",
     product_password: "",
+    credentials: [{ username: "", password: "" }],
 }
 
 function formatPrice(value: number) {
@@ -100,7 +108,22 @@ async function getErrorMessage(response: Response, fallbackMessage: string) {
     }
 }
 
-function mapProductToForm(product: Product): ProductForm {
+async function fetchProductCredentials(productId: number): Promise<ProductCredential[]> {
+    try {
+        const response = await fetch(`/api/admin/credentials-inventory?product_id=${productId}`)
+        if (!response.ok) return []
+        const data = (await response.json()) as InventoryCredential[]
+        return data.map((c) => ({
+            id: String(c.id),
+            username: c.username,
+            password: c.password,
+        }))
+    } catch {
+        return []
+    }
+}
+
+function mapProductToForm(product: Product, credentials: ProductCredential[] = []): ProductForm {
     const firstImage = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : ""
 
     return {
@@ -115,6 +138,7 @@ function mapProductToForm(product: Product): ProductForm {
         image_url: firstImage,
         product_username: product.product_username || "",
         product_password: product.product_password || "",
+        credentials: credentials.length > 0 ? credentials : [{ username: "", password: "" }],
     }
 }
 
@@ -205,9 +229,10 @@ export default function AdminProductsPage() {
         setShowProductModal(true)
     }
 
-    function openEditModal(product: Product) {
+    async function openEditModal(product: Product) {
         setEditingProduct(product)
-        setForm(mapProductToForm(product))
+        const credentials = await fetchProductCredentials(product.id)
+        setForm(mapProductToForm(product, credentials))
         setShowProductModal(true)
     }
 
@@ -240,6 +265,11 @@ export default function AdminProductsPage() {
         setSaving(true)
 
         try {
+            // Filter out empty credentials
+            const validCredentials = form.credentials.filter(
+                (cred) => cred.username.trim() || cred.password.trim()
+            )
+
             const payload = {
                 ...(editingProduct ? { id: editingProduct.id } : {}),
                 sku: form.sku.trim(),
@@ -253,6 +283,11 @@ export default function AdminProductsPage() {
                 images: form.image_url.trim() ? [form.image_url.trim()] : null,
                 product_username: form.product_username.trim() || null,
                 product_password: form.product_password.trim() || null,
+                credentials: validCredentials.map((cred) => ({
+                    id: cred.id,
+                    username: cred.username.trim(),
+                    password: cred.password.trim(),
+                })),
             }
 
             const response = await fetch("/api/admin/products", {
@@ -620,6 +655,23 @@ export default function AdminProductsPage() {
                                     />
                                 </label>
 
+                                <label className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                                    <input
+                                        checked={form.is_featured}
+                                        onChange={(event) => setForm((prev) => ({ ...prev, is_featured: event.target.checked }))}
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-border"
+                                    />
+                                    <span className="text-sm font-medium text-foreground">Featured product</span>
+                                </label>
+                            </div>
+
+                            <div className="border-t border-border pt-4">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <label className="text-sm font-semibold text-foreground">Shared Credentials</label>
+                                    <p className="text-xs text-muted-foreground">{form.credentials.length} credential entry</p>
+                                </div>
+
                                 <label className="space-y-1">
                                     <span className="text-sm font-medium text-foreground">Shared Username</span>
                                     <input
@@ -640,16 +692,72 @@ export default function AdminProductsPage() {
                                         className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
                                     />
                                 </label>
+                            </div>
 
-                                <label className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 md:self-end">
-                                    <input
-                                        checked={form.is_featured}
-                                        onChange={(event) => setForm((prev) => ({ ...prev, is_featured: event.target.checked }))}
-                                        type="checkbox"
-                                        className="h-4 w-4 rounded border-border"
-                                    />
-                                    <span className="text-sm font-medium text-foreground">Featured product</span>
-                                </label>
+                            <div className="border-t border-border pt-4">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <label className="text-sm font-semibold text-foreground">Individual Credentials</label>
+                                    <p className="text-xs text-muted-foreground">{form.credentials.length} credential rows</p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {form.credentials.map((credential, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <input
+                                                value={credential.username}
+                                                onChange={(e) =>
+                                                    setForm((prev) => {
+                                                        const newCreds = [...prev.credentials]
+                                                        newCreds[index] = { ...newCreds[index], username: e.target.value }
+                                                        return { ...prev, credentials: newCreds }
+                                                    })
+                                                }
+                                                placeholder="Username"
+                                                className="flex-1 h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
+                                            />
+                                            <input
+                                                value={credential.password}
+                                                onChange={(e) =>
+                                                    setForm((prev) => {
+                                                        const newCreds = [...prev.credentials]
+                                                        newCreds[index] = { ...newCreds[index], password: e.target.value }
+                                                        return { ...prev, credentials: newCreds }
+                                                    })
+                                                }
+                                                type="password"
+                                                placeholder="Password"
+                                                className="flex-1 h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        credentials: prev.credentials.filter((_, i) => i !== index),
+                                                    }))
+                                                }
+                                                className="rounded-lg border border-border px-2 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                                aria-label="Remove credential"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            credentials: [...prev.credentials, { username: "", password: "" }],
+                                        }))
+                                    }
+                                    className="mt-3 flex items-center gap-2 text-sm font-medium text-[#38bdf8] transition-colors hover:text-[#0ea5e9]"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add Credential Row
+                                </button>
                             </div>
 
                             <div className="flex items-center justify-end gap-2 pt-2">
