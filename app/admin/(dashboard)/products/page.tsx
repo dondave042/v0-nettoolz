@@ -13,6 +13,7 @@ import {
     Search,
     RefreshCw,
     X,
+    AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -145,6 +146,7 @@ function mapProductToForm(product: Product, credentials: ProductCredential[] = [
 export default function AdminProductsPage() {
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<Category[]>([])
+    const [categoriesError, setCategoriesError] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -170,6 +172,7 @@ export default function AdminProductsPage() {
     async function fetchData(background = false) {
         if (!background) {
             setLoading(true)
+            setCategoriesError(null)
         } else {
             setRefreshing(true)
         }
@@ -184,18 +187,22 @@ export default function AdminProductsPage() {
                 throw new Error(await getErrorMessage(productsRes, "Failed to load products"))
             }
 
-            if (!categoriesRes.ok) {
-                throw new Error(await getErrorMessage(categoriesRes, "Failed to load categories"))
-            }
-
             const productsData = await productsRes.json()
-            const categoriesData = await categoriesRes.json()
-
             const normalizedProducts = (Array.isArray(productsData) ? productsData : productsData.products || []) as Product[]
-            const normalizedCategories = (Array.isArray(categoriesData) ? categoriesData : categoriesData.categories || []) as Category[]
-
             setProducts(normalizedProducts)
-            setCategories(normalizedCategories)
+
+            // Handle categories separately to not block product loading
+            if (!categoriesRes.ok) {
+                const errorMsg = await getErrorMessage(categoriesRes, "Failed to load categories")
+                console.error("[v0] Categories fetch error:", errorMsg)
+                setCategoriesError(errorMsg)
+                setCategories([])
+            } else {
+                const categoriesData = await categoriesRes.json()
+                const normalizedCategories = (Array.isArray(categoriesData) ? categoriesData : categoriesData.categories || []) as Category[]
+                setCategories(normalizedCategories)
+                setCategoriesError(null)
+            }
         } catch (error) {
             console.error("Admin products fetch error:", error)
             toast.error(error instanceof Error ? error.message : "Failed to load admin data")
@@ -414,18 +421,27 @@ export default function AdminProductsPage() {
                         />
                     </label>
 
-                    <select
-                        value={categoryFilter}
-                        onChange={(event) => setCategoryFilter(event.target.value)}
-                        className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
-                    >
-                        <option value="">All categories</option>
-                        {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="relative">
+                        <select
+                            value={categoryFilter}
+                            onChange={(event) => setCategoryFilter(event.target.value)}
+                            disabled={categories.length === 0 && !categoriesError}
+                            className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8] disabled:opacity-50"
+                        >
+                            <option value="">All categories</option>
+                            {categories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                    {category.name}
+                                </option>
+                            ))}
+                        </select>
+                        {categoriesError && (
+                            <div className="mt-2 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                <span>{categoriesError}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </section>
 
@@ -607,19 +623,44 @@ export default function AdminProductsPage() {
                                 </label>
 
                                 <label className="space-y-1">
-                                    <span className="text-sm font-medium text-foreground">Category</span>
-                                    <select
-                                        value={form.category_id}
-                                        onChange={(event) => setForm((prev) => ({ ...prev, category_id: event.target.value }))}
-                                        className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
-                                    >
-                                        <option value="">Uncategorized</option>
-                                        {categories.map((category) => (
-                                            <option key={category.id} value={category.id}>
-                                                {category.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-foreground">Category</span>
+                                        {categories.length === 0 && !categoriesError && (
+                                            <span className="text-xs text-muted-foreground">Loading categories...</span>
+                                        )}
+                                    </div>
+                                    {categoriesError ? (
+                                        <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-3 text-sm text-destructive">
+                                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                            <div className="flex-1">
+                                                <p className="font-medium">Cannot load categories</p>
+                                                <p className="text-xs mt-1">{categoriesError}</p>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="mt-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/20"
+                                                    onClick={() => fetchData(true)}
+                                                >
+                                                    Retry loading categories
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <select
+                                            value={form.category_id}
+                                            onChange={(event) => setForm((prev) => ({ ...prev, category_id: event.target.value }))}
+                                            disabled={categories.length === 0}
+                                            className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8] disabled:opacity-50"
+                                        >
+                                            <option value="">Uncategorized</option>
+                                            {categories.map((category) => (
+                                                <option key={category.id} value={category.id}>
+                                                    {category.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </label>
 
                                 <label className="space-y-1">
