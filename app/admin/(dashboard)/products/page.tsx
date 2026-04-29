@@ -159,6 +159,11 @@ export default function AdminProductsPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [form, setForm] = useState<ProductForm>(emptyForm)
 
+    const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false)
+    const [newCategoryName, setNewCategoryName] = useState("")
+    const [newCategoryDescription, setNewCategoryDescription] = useState("")
+    const [creatingCategory, setCreatingCategory] = useState(false)
+
     const [showCredentialsModal, setShowCredentialsModal] = useState(false)
     const [credentialsLoading, setCredentialsLoading] = useState(false)
     const [credentialsProduct, setCredentialsProduct] = useState<Product | null>(null)
@@ -342,6 +347,46 @@ export default function AdminProductsPage() {
             toast.error(error instanceof Error ? error.message : "Failed to delete product")
         } finally {
             setDeletingId(null)
+        }
+    }
+
+    async function handleCreateCategory() {
+        const trimmed = newCategoryName.trim()
+        if (!trimmed) {
+            toast.error("Category name is required")
+            return
+        }
+
+        setCreatingCategory(true)
+        try {
+            const res = await fetch("/api/admin/categories", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: trimmed,
+                    description: newCategoryDescription.trim() || null,
+                }),
+            })
+
+            if (!res.ok) {
+                const error = await getErrorMessage(res, "Failed to create category")
+                throw new Error(error)
+            }
+
+            const newCategory = await res.json()
+            setCategories((prev) => [...prev, newCategory as Category])
+            setForm((prev) => ({ ...prev, category_id: String(newCategory.id) }))
+            toast.success(`Category "${newCategory.name}" created and selected`)
+
+            // Reset form
+            setNewCategoryName("")
+            setNewCategoryDescription("")
+            setShowCreateCategoryModal(false)
+        } catch (error) {
+            console.error("Create category error:", error)
+            toast.error(error instanceof Error ? error.message : "Failed to create category")
+        } finally {
+            setCreatingCategory(false)
         }
     }
 
@@ -647,19 +692,31 @@ export default function AdminProductsPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <select
-                                            value={form.category_id}
-                                            onChange={(event) => setForm((prev) => ({ ...prev, category_id: event.target.value }))}
-                                            disabled={categories.length === 0}
-                                            className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8] disabled:opacity-50"
-                                        >
-                                            <option value="">Uncategorized</option>
-                                            {categories.map((category) => (
-                                                <option key={category.id} value={category.id}>
-                                                    {category.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={form.category_id}
+                                                onChange={(event) => setForm((prev) => ({ ...prev, category_id: event.target.value }))}
+                                                disabled={categories.length === 0}
+                                                className="h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8] disabled:opacity-50"
+                                            >
+                                                <option value="">Uncategorized</option>
+                                                {categories.map((category) => (
+                                                    <option key={category.id} value={category.id}>
+                                                        {category.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-1"
+                                                onClick={() => setShowCreateCategoryModal(true)}
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                New
+                                            </Button>
+                                        </div>
                                     )}
                                 </label>
 
@@ -932,6 +989,93 @@ export default function AdminProductsPage() {
                             <Button variant="outline" onClick={() => setShowCredentialsModal(false)}>
                                 Close
                             </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {showCreateCategoryModal ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+                    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 md:p-6">
+                        <div className="mb-5 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-semibold text-foreground">Create New Category</h2>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Create a new product category to organize your inventory.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowCreateCategoryModal(false)}
+                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                aria-label="Close"
+                                disabled={creatingCategory}
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="space-y-1 block">
+                                <span className="text-sm font-medium text-foreground">Category Name *</span>
+                                <input
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && newCategoryName.trim() && !creatingCategory) {
+                                            handleCreateCategory()
+                                        }
+                                    }}
+                                    placeholder="e.g. Gaming, Electronics, Software"
+                                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
+                                    disabled={creatingCategory}
+                                    autoFocus
+                                />
+                            </label>
+
+                            <label className="space-y-1 block">
+                                <span className="text-sm font-medium text-foreground">Description (Optional)</span>
+                                <textarea
+                                    value={newCategoryDescription}
+                                    onChange={(e) => setNewCategoryDescription(e.target.value)}
+                                    placeholder="Describe what products belong in this category"
+                                    rows={3}
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
+                                    disabled={creatingCategory}
+                                />
+                            </label>
+
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowCreateCategoryModal(false)
+                                        setNewCategoryName("")
+                                        setNewCategoryDescription("")
+                                    }}
+                                    disabled={creatingCategory}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    disabled={!newCategoryName.trim() || creatingCategory}
+                                    className="bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
+                                    onClick={handleCreateCategory}
+                                >
+                                    {creatingCategory ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Creating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Create Category
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
