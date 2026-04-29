@@ -14,6 +14,7 @@ import {
     RefreshCw,
     X,
     AlertCircle,
+    Image as ImageIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -162,6 +163,8 @@ export default function AdminProductsPage() {
     const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false)
     const [newCategoryName, setNewCategoryName] = useState("")
     const [newCategoryDescription, setNewCategoryDescription] = useState("")
+    const [newCategoryIcon, setNewCategoryIcon] = useState<File | null>(null)
+    const [newCategoryIconPreview, setNewCategoryIconPreview] = useState<string>("")
     const [creatingCategory, setCreatingCategory] = useState(false)
 
     const [showCredentialsModal, setShowCredentialsModal] = useState(false)
@@ -350,6 +353,25 @@ export default function AdminProductsPage() {
         }
     }
 
+    function handleCategoryIconSelect(file: File | null) {
+        if (file) {
+            if (!file.type.startsWith("image/")) {
+                toast.error("Please select a valid image file")
+                return
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error("Image size must be less than 5MB")
+                return
+            }
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setNewCategoryIconPreview(reader.result as string)
+            }
+            reader.readAsDataURL(file)
+            setNewCategoryIcon(file)
+        }
+    }
+
     async function handleCreateCategory() {
         const trimmed = newCategoryName.trim()
         if (!trimmed) {
@@ -359,13 +381,16 @@ export default function AdminProductsPage() {
 
         setCreatingCategory(true)
         try {
+            const formData = new FormData()
+            formData.append("name", trimmed)
+            formData.append("description", newCategoryDescription.trim() || "")
+            if (newCategoryIcon) {
+                formData.append("icon", newCategoryIcon)
+            }
+
             const res = await fetch("/api/admin/categories", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: trimmed,
-                    description: newCategoryDescription.trim() || null,
-                }),
+                body: formData,
             })
 
             if (!res.ok) {
@@ -381,6 +406,8 @@ export default function AdminProductsPage() {
             // Reset form
             setNewCategoryName("")
             setNewCategoryDescription("")
+            setNewCategoryIcon(null)
+            setNewCategoryIconPreview("")
             setShowCreateCategoryModal(false)
         } catch (error) {
             console.error("Create category error:", error)
@@ -1042,6 +1069,46 @@ export default function AdminProductsPage() {
                                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-[#38bdf8]"
                                     disabled={creatingCategory}
                                 />
+                            </label>
+
+                            <label className="space-y-1 block">
+                                <span className="text-sm font-medium text-foreground">Category Icon (Optional)</span>
+                                <div className="mt-2 flex items-center gap-3">
+                                    <label className="relative inline-flex items-center justify-center h-20 w-20 rounded-lg border-2 border-dashed border-border bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                        {newCategoryIconPreview ? (
+                                            <img
+                                                src={newCategoryIconPreview}
+                                                alt="Icon preview"
+                                                className="h-full w-full rounded-lg object-cover"
+                                            />
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center">
+                                                <ImageIcon className="h-6 w-6 text-muted-foreground mb-1" />
+                                                <span className="text-xs text-muted-foreground">Upload</span>
+                                            </div>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleCategoryIconSelect(e.target.files?.[0] || null)}
+                                            className="hidden"
+                                            disabled={creatingCategory}
+                                        />
+                                    </label>
+                                    {newCategoryIconPreview && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setNewCategoryIcon(null)
+                                                setNewCategoryIconPreview("")
+                                            }}
+                                            className="text-muted-foreground hover:text-foreground"
+                                            disabled={creatingCategory}
+                                        >
+                                            <X className="h-5 w-5" />
+                                        </button>
+                                    )}
+                                </div>
                             </label>
 
                             <div className="flex items-center justify-end gap-2 pt-2">
