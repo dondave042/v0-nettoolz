@@ -42,10 +42,16 @@ export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const sql = getDb()
-  await ensureDefaultCategories(sql)
-  const categories = await sql`SELECT * FROM categories ORDER BY sort_order, name`
-  return NextResponse.json(categories)
+  try {
+    const sql = getDb()
+    await ensureDefaultCategories(sql)
+    const categories = await sql`SELECT id, name, description, sort_order FROM categories ORDER BY sort_order, name`
+    return NextResponse.json(categories)
+  } catch (error) {
+    console.error("[v0] Categories GET error:", error)
+    const msg = error instanceof Error ? error.message : "Failed to load categories"
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
