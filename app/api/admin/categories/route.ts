@@ -59,19 +59,29 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    const { name, description, slug: slugInput } = await request.json()
+    const formData = await request.formData()
+    const name = formData.get("name")
+    const description = formData.get("description")
+    const iconFile = formData.get("icon") as File | null
+
     const trimmed = typeof name === "string" ? name.trim().toUpperCase() : ""
     if (!trimmed) {
       return NextResponse.json({ error: "Category name is required" }, { status: 400 })
     }
 
     const desc = typeof description === "string" ? description.trim() || null : null
-    const slug = typeof slugInput === "string" && slugInput.trim()
-      ? slugify(slugInput)
-      : slugify(trimmed)
+    const slug = slugify(trimmed)
 
     if (!slug) {
       return NextResponse.json({ error: "Category slug is required" }, { status: 400 })
+    }
+
+    let iconBase64: string | null = null
+    if (iconFile && iconFile.size > 0) {
+      const buffer = await iconFile.arrayBuffer()
+      iconBase64 = Buffer.from(buffer).toString("base64")
+      const mimeType = iconFile.type || "image/png"
+      iconBase64 = `data:${mimeType};base64,${iconBase64}`
     }
 
     const sql = getDb()
@@ -79,8 +89,8 @@ export async function POST(request: Request) {
     const nextOrder = Number((maxRow[0] as { max: number }).max) + 1
 
     const result = await sql`
-      INSERT INTO categories (name, slug, description, sort_order)
-      VALUES (${trimmed}, ${slug}, ${desc}, ${nextOrder})
+      INSERT INTO categories (name, slug, description, sort_order, icon)
+      VALUES (${trimmed}, ${slug}, ${desc}, ${nextOrder}, ${iconBase64})
       RETURNING *
     `
     return NextResponse.json(result[0], { status: 201 })
@@ -98,28 +108,54 @@ export async function PUT(request: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    const { id, name, description, slug: slugInput } = await request.json()
+    const formData = await request.formData()
+    const id = formData.get("id")
+    const name = formData.get("name")
+    const description = formData.get("description")
+    const iconFile = formData.get("icon") as File | null
+
     const trimmed = typeof name === "string" ? name.trim().toUpperCase() : ""
     if (!id || !trimmed) {
       return NextResponse.json({ error: "ID and name are required" }, { status: 400 })
     }
 
     const desc = typeof description === "string" ? description.trim() || null : null
-    const slug = typeof slugInput === "string" && slugInput.trim()
-      ? slugify(slugInput)
-      : slugify(trimmed)
+    const slug = slugify(trimmed)
 
     if (!slug) {
       return NextResponse.json({ error: "Category slug is required" }, { status: 400 })
     }
 
+    let iconBase64: string | null = undefined
+    if (iconFile && iconFile.size > 0) {
+      const buffer = await iconFile.arrayBuffer()
+      iconBase64 = Buffer.from(buffer).toString("base64")
+      const mimeType = iconFile.type || "image/png"
+      iconBase64 = `data:${mimeType};base64,${iconBase64}`
+    }
+
     const sql = getDb()
-    const result = await sql`
-      UPDATE categories 
-      SET name = ${trimmed}, slug = ${slug}, description = ${desc}, updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `
+    let updateQuery: string
+    if (iconBase64 !== undefined) {
+      updateQuery = `
+        UPDATE categories 
+        SET name = $1, slug = $2, description = $3, icon = $4, updated_at = NOW()
+        WHERE id = $5
+        RETURNING *
+      `
+    } else {
+      updateQuery = `
+        UPDATE categories 
+        SET name = $1, slug = $2, description = $3, updated_at = NOW()
+        WHERE id = $4
+        RETURNING *
+      `
+    }
+    
+    const result = iconBase64 !== undefined
+      ? await sql.unsafe(updateQuery, [trimmed, slug, desc, iconBase64, id])
+      : await sql.unsafe(updateQuery, [trimmed, slug, desc, id])
+    
     if (result.length === 0) return NextResponse.json({ error: "Category not found" }, { status: 404 })
     return NextResponse.json(result[0])
   } catch (error: unknown) {
