@@ -43,6 +43,7 @@ interface ProductListViewProps {
 }
 
 const sortOptions = [
+  { value: "alphabetical", label: "A-Z (Alphabetical)" },
   { value: "newest", label: "Newest" },
   { value: "featured", label: "Featured" },
   { value: "price-low", label: "Price: Low to High" },
@@ -145,7 +146,8 @@ export function ProductListView({
   const isMobile = useIsMobile()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "featured">("newest")
+  // Add "alphabetical" to sortBy type and set as default
+  const [sortBy, setSortBy] = useState<"alphabetical" | "newest" | "price-low" | "price-high" | "featured">("alphabetical")
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
@@ -180,6 +182,9 @@ export function ProductListView({
     // Sort
     const sorted = [...filtered]
     switch (sortBy) {
+      case "alphabetical":
+        sorted.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }))
+        break
       case "price-low":
         sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
         break
