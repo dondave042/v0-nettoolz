@@ -10,5 +10,8 @@
     ""
   ],
   "json.format.keepLines": true,
-  "remoteHub.richNavigation.enabled": true
+  "remoteHub.richNavigation.enabled": true,
+  "githubPullRequests.ignoredPullRequestBranches": [
+    "main"
+  ]
 }
