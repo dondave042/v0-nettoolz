@@ -12,11 +12,12 @@ export default function HomePage() {
           style={{
             backgroundImage: `
               url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_224405-saZaHhEEfjmw50VhH6xc5EJQpkuU94.png'),
+              url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/1e1742f1-b7d2-42c1-a542-62687677e3ed-ws2Qsgg2PRz4JNSgFpLmD9uT7OYJwq.png'),
               url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_222948-bIXjcnXfpXqQETwyVg9dFGukVLKyJQ.png')
             `,
-            backgroundSize: '25%, 50%',
-            backgroundPosition: 'left center, right center',
-            backgroundRepeat: 'no-repeat, no-repeat',
+            backgroundSize: '25%, 40%, 50%',
+            backgroundPosition: 'left center, center center, right center',
+            backgroundRepeat: 'no-repeat, no-repeat, no-repeat',
           }}
         >
           {/* Dark overlay for text readability */}
