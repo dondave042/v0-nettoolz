@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
           p.name,
           p.description,
           p.price,
-          p.available_qty,
           p.badge,
           p.is_featured,
           p.images,
@@ -37,7 +36,6 @@ export async function GET(request: NextRequest) {
           p.name,
           p.description,
           p.price,
-          p.available_qty,
           p.badge,
           p.is_featured,
           p.images,
@@ -52,8 +50,7 @@ export async function GET(request: NextRequest) {
         inventory.name,
         inventory.description,
         inventory.price,
-        LEAST(
-          inventory.available_qty,
+        (
           CASE
             WHEN inventory.total_inventory_rows = 0
               AND (
@@ -78,8 +75,7 @@ export async function GET(request: NextRequest) {
         inventory.created_at
       FROM inventory
       LEFT JOIN categories c ON inventory.category_id = c.id
-      WHERE LEAST(
-        inventory.available_qty,
+      WHERE (
         CASE
           WHEN inventory.total_inventory_rows = 0
             AND (
