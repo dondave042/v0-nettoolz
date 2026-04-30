@@ -7,8 +7,22 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
       <main className="flex-1">
-        <section className="bg-gradient-to-br from-[#0c4a6e] to-[#0c1e2d] px-4 py-16 text-center">
-          <div className="mx-auto max-w-4xl">
+        <section 
+          className="relative overflow-hidden px-4 py-16 text-center"
+          style={{
+            backgroundImage: `
+              url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_224405-saZaHhEEfjmw50VhH6xc5EJQpkuU94.png'),
+              url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_222948-bIXjcnXfpXqQETwyVg9dFGukVLKyJQ.png')
+            `,
+            backgroundSize: 'cover, cover',
+            backgroundPosition: 'center top, center bottom',
+            backgroundRepeat: 'no-repeat, no-repeat',
+          }}
+        >
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0c4a6e]/85 via-[#0c4a6e]/80 to-[#0c1e2d]/85"></div>
+          
+          <div className="relative mx-auto max-w-4xl">
             <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-sky-300 md:text-6xl">
               NETTOOLZ
             </h1>
