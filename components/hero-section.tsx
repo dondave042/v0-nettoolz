@@ -19,10 +19,10 @@ export function HeroSection() {
         <div className="absolute right-1/3 top-1/3 h-72 w-72 rounded-full bg-[#0ea5e9] blur-3xl animate-pulse delay-500" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
-        <div className="flex flex-col items-center gap-12">
+      <div className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
+        <div className="flex flex-col items-center">
           {/* Text content */}
-          <div className="max-w-3xl text-center">
+          <div className="max-w-3xl text-center [margin-top:5px]">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
               Premium Digital Products
@@ -68,7 +68,6 @@ export function HeroSection() {
               ))}
             </div>
           </div>
-
         </div>
       </div>
     </section>
