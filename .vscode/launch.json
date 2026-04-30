@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "PowerShell: Windows PowerShell",
+            "type": "PowerShell",
+            "request": "launch",
+            "sessionName": "Windows PowerShell (x64)"
+        },
+        {
+            "name": "PowerShell Attach to Host Process",
+            "type": "PowerShell",
+            "request": "attach"
+        },
+        {
             "command": "npm start",
             "name": "Run npm start",
             "request": "launch",
@@ -16,15 +27,12 @@
             "request": "launch",
             "type": "node-terminal"
         },
-
         {
             "command": "npm start",
             "name": "Run npm start",
             "request": "launch",
             "type": "node-terminal"
         },
-        
-
         {
             "name": "Attach by Process ID",
             "processId": "${command:PickProcess}",
@@ -40,7 +48,6 @@
             "request": "launch",
             "type": "node-terminal"
         },
-
         {
             "command": "npm start",
             "name": "Run npm start",
@@ -53,25 +60,12 @@
             "request": "launch",
             "type": "node-terminal"
         },
-    
-        
-         
-
-
-
-
-
-
-        
         {
             "command": "npm start",
             "name": "Run npm start",
             "request": "launch",
             "type": "node-terminal"
         },
-
-
-
         {
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}"
@@ -84,8 +78,6 @@
             "request": "launch",
             "type": "extensionHost"
         },
-
-
         {
             "name": "Attach to Chrome",
             "port": 9222,
@@ -106,12 +98,6 @@
             "request": "launch",
             "type": "node-terminal"
         },
-
-
-
-
-
-
         {
             "command": "npm start",
             "name": "Run npm start",
@@ -124,10 +110,5 @@
             "request": "launch",
             "type": "node-terminal"
         }
-        
-
-
-
-
     ]
 }

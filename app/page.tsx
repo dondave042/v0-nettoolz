@@ -1,30 +1,47 @@
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-import { AnnouncementsBar } from "@/components/announcements-bar"
-import { HeroSection } from "@/components/hero-section"
-import { CategoriesSection } from "@/components/categories-section"
-import { ProductsSection } from "@/components/products-section"
-import { FeaturesSection } from "@/components/features-section"
-import { TestimonialsSection } from "@/components/testimonials-section"
-import { ContactSection } from "@/components/contact-section"
-import { Suspense } from "react"
+import { ProductListView } from "@/components/product-list-view"
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <AnnouncementsBar />
+    <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
       <main className="flex-1">
-        <HeroSection />
-        <CategoriesSection />
-        <Suspense>
-          <ProductsSection />
-        </Suspense>
-        <FeaturesSection />
-        <TestimonialsSection />
-        <ContactSection />
+        <section 
+          className="relative overflow-hidden px-4 py-16 text-center"
+          style={{
+            backgroundImage: `
+              url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_224405-saZaHhEEfjmw50VhH6xc5EJQpkuU94.png'),
+              url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/1e1742f1-b7d2-42c1-a542-62687677e3ed-ws2Qsgg2PRz4JNSgFpLmD9uT7OYJwq.png'),
+              url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_222948-bIXjcnXfpXqQETwyVg9dFGukVLKyJQ.png')
+            `,
+            backgroundSize: '30%, 35%, 35%',
+            backgroundPosition: '0% center, 30% center, 65% center',
+            backgroundRepeat: 'no-repeat, no-repeat, no-repeat',
+          }}
+        >
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0c4a6e]/85 via-[#0c4a6e]/80 to-[#0c1e2d]/85"></div>
+          
+          <div className="relative mx-auto max-w-4xl">
+            <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-sky-300 md:text-6xl">
+              NETTOOLZ
+            </h1>
+            <div className="mx-auto max-w-2xl rounded-2xl bg-[#7dd3fc] px-6 py-4 shadow-lg shadow-sky-950/20">
+              <p className="text-lg font-medium text-[#082f49] md:text-xl">
+                Your ultimate destination for premium digital accounts, tools, and licenses. Trusted by thousands of customer
+              </p>
+            </div>
+          </div>
+        </section>
+        <ProductListView
+          showHeader={false}
+          title="Product Catalog"
+          description="Browse our full catalog of premium digital accounts, tools, and licenses. Instant delivery after purchase."
+        />
       </main>
       <SiteFooter />
     </div>
   )
 }
+

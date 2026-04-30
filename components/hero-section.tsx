@@ -1,9 +1,17 @@
-import { ArrowRight, Shield, Zap, Clock, Star } from "lucide-react"
+import { ArrowRight, Shield, Zap, Clock, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1]">
+      {/* Decorative logo backgrounds */}
+      <div className="pointer-events-none absolute inset-0 z-0 select-none">
+        <img src="/images/logo.png" alt="Logo" style={{ position: 'absolute', top: '10%', left: '5%', width: 100, opacity: 0.13, zIndex: 1 }} />
+        <img src="/apple-icon.png" alt="Apple" style={{ position: 'absolute', top: '60%', left: '10%', width: 70, opacity: 0.10, zIndex: 1 }} />
+        <img src="/icon.svg" alt="Icon" style={{ position: 'absolute', top: '20%', right: '10%', width: 90, opacity: 0.10, zIndex: 1 }} />
+        {/* Add more icons as desired for effect */}
+      </div>
+
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-15">
         <div className="absolute left-1/4 top-1/4 h-80 w-80 rounded-full bg-[#38bdf8] blur-3xl animate-pulse" />
@@ -16,18 +24,14 @@ export function HeroSection() {
           {/* Text content */}
           <div className="max-w-3xl text-center [margin-top:5px]">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
-              <Star className="h-4 w-4" />
-              Trusted by 50,000+ Happy Customers Worldwide
+              <Sparkles className="h-4 w-4" />
+              Premium Digital Products
             </div>
             <h1 className="mb-8 text-balance font-[var(--font-heading)] text-5xl font-extrabold leading-tight tracking-tight text-white md:text-6xl lg:text-7xl">
-              Get Premium Digital Accounts{" "}
-              <span className="relative">
-                <span className="absolute inset-x-0 bottom-2 h-3 bg-[#38bdf8]/40 blur-xl"></span>
-                <span className="relative text-[#38bdf8]">Instantly</span>
-              </span>
+              Shop NETTOOLZ
             </h1>
             <p className="mb-10 max-w-2xl text-pretty text-lg leading-relaxed text-[#bae6fd] md:text-xl">
-              Access premium accounts across all platforms. Verified sellers, instant delivery, and lifetime support. Join thousands of satisfied customers today.
+              Browse our catalog of premium accounts, tools, and licenses. Instant delivery after purchase.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-5">
               <Button
@@ -51,7 +55,7 @@ export function HeroSection() {
             </div>
 
             {/* Trust indicators */}
-            <div className="mt-10 flex flex-wrap justify-center gap-6 lg:justify-start">
+            <div className="mt-10 flex flex-wrap justify-center gap-6">
               {[
                 { icon: Shield, label: "Secure Payments" },
                 { icon: Zap, label: "Instant Delivery" },

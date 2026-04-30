@@ -17,6 +17,7 @@ interface Credential {
 interface Product {
   id: number
   name: string
+  available_qty: number
 }
 
 const emptyForm = {
@@ -26,11 +27,7 @@ const emptyForm = {
 
 async function getErrorMessage(response: Response, fallbackMessage: string) {
   const responseText = await response.text()
-
-  if (!responseText) {
-    return fallbackMessage
-  }
-
+  if (!responseText) return fallbackMessage
   try {
     const parsed = JSON.parse(responseText) as { error?: unknown }
     return typeof parsed.error === "string" && parsed.error ? parsed.error : fallbackMessage
@@ -51,7 +48,7 @@ export default function CredentialsInventoryPage() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [filterProductId])
 
   async function fetchData() {
     setLoading(true)
@@ -84,49 +81,31 @@ export default function CredentialsInventoryPage() {
   }
 
   function addCredentialRow() {
-    setForm({
-      ...form,
-      credentials: [...form.credentials, { username: "", password: "" }],
-    })
+    setForm({ ...form, credentials: [...form.credentials, { username: "", password: "" }] })
   }
 
   function removeCredentialRow(index: number) {
-    setForm({
-      ...form,
-      credentials: form.credentials.filter((_, i) => i !== index),
-    })
+    setForm({ ...form, credentials: form.credentials.filter((_, i) => i !== index) })
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-
     try {
       if (!form.product_id) {
         toast.error("Please select a product")
-        setSaving(false)
         return
       }
-
-      const validCredentials = form.credentials.filter(
-        (c) => c.username && c.password
-      )
-
+      const validCredentials = form.credentials.filter((c) => c.username && c.password)
       if (validCredentials.length === 0) {
         toast.error("Add at least one credential")
-        setSaving(false)
         return
       }
-
       const res = await fetch("/api/admin/credentials-inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_id: parseInt(form.product_id),
-          credentials: validCredentials,
-        }),
+        body: JSON.stringify({ product_id: parseInt(form.product_id), credentials: validCredentials }),
       })
-
       if (res.ok) {
         const data = await res.json()
         toast.success(`Added ${data.count} credentials`)
@@ -145,14 +124,12 @@ export default function CredentialsInventoryPage() {
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this credential?")) return
-
     try {
       const res = await fetch("/api/admin/credentials-inventory", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       })
-
       if (res.ok) {
         toast.success("Credential deleted")
         fetchData()
@@ -165,12 +142,31 @@ export default function CredentialsInventoryPage() {
     }
   }
 
+  // Group credentials by product, sorted by product name then created_at
   const filteredCredentials = filterProductId
     ? credentials.filter((c) => c.product_id === parseInt(filterProductId))
     : credentials
 
-  const assigned = filteredCredentials.filter((c) => c.assigned_to_buyer_id !== null).length
-  const available = filteredCredentials.filter((c) => c.assigned_to_buyer_id === null).length
+  const productGroups: { product: Product | undefined; creds: Credential[] }[] = []
+  const seen = new Map<number, Credential[]>()
+
+  for (const cred of filteredCredentials) {
+    if (!seen.has(cred.product_id)) seen.set(cred.product_id, [])
+    seen.get(cred.product_id)!.push(cred)
+  }
+
+  for (const [pid, creds] of seen.entries()) {
+    const product = products.find((p) => p.id === pid)
+    const sorted = [...creds].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    productGroups.push({ product, creds: sorted })
+  }
+  productGroups.sort((a, b) => (a.product?.name ?? "").localeCompare(b.product?.name ?? ""))
+
+  const totalAll = filteredCredentials.length
+  const assignedAll = filteredCredentials.filter((c) => c.assigned_to_buyer_id !== null).length
+  const availableAll = totalAll - assignedAll
 
   if (loading) {
     return (
@@ -189,10 +185,7 @@ export default function CredentialsInventoryPage() {
             Manage buyer credentials distribution
           </p>
         </div>
-        <Button
-          onClick={openAdd}
-          className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
-        >
+        <Button onClick={openAdd} className="gap-2 bg-[#38bdf8] text-white hover:bg-[#0ea5e9]">
           <Plus className="h-4 w-4" />
           Add Credentials
         </Button>
@@ -202,15 +195,15 @@ export default function CredentialsInventoryPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">Total Credentials</p>
-          <p className="mt-2 text-2xl font-bold text-foreground">{filteredCredentials.length}</p>
+          <p className="mt-2 text-2xl font-bold text-foreground">{totalAll}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">Available</p>
-          <p className="mt-2 text-2xl font-bold text-green-600">{available}</p>
+          <p className="mt-2 text-2xl font-bold text-green-600">{availableAll}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">Assigned</p>
-          <p className="mt-2 text-2xl font-bold text-blue-600">{assigned}</p>
+          <p className="mt-2 text-2xl font-bold text-blue-600">{assignedAll}</p>
         </div>
       </div>
 
@@ -219,10 +212,7 @@ export default function CredentialsInventoryPage() {
         <label className="text-sm font-medium text-foreground">Filter by product:</label>
         <select
           value={filterProductId}
-          onChange={(e) => {
-            setFilterProductId(e.target.value)
-            fetchData()
-          }}
+          onChange={(e) => setFilterProductId(e.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#38bdf8] focus:outline-none"
         >
           <option value="">All Products</option>
@@ -234,11 +224,13 @@ export default function CredentialsInventoryPage() {
         </select>
       </div>
 
+<<<<<<< HEAD
       {/* Credentials List */}
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted">
             <tr>
+              <th className="px-4 py-3 text-left font-medium text-foreground">#</th>
               <th className="px-4 py-3 text-left font-medium text-foreground">Product</th>
               <th className="px-4 py-3 text-left font-medium text-foreground">Username</th>
               <th className="px-4 py-3 text-left font-medium text-foreground">Password</th>
@@ -249,17 +241,18 @@ export default function CredentialsInventoryPage() {
           <tbody>
             {filteredCredentials.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No credentials found
                 </td>
               </tr>
             ) : (
-              filteredCredentials.map((cred) => {
+              filteredCredentials.map((cred, index) => {
                 const product = products.find((p) => p.id === cred.product_id)
                 const showPassword = showPasswords[cred.id]
 
                 return (
                   <tr key={cred.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
                     <td className="px-4 py-3 text-foreground">{product?.name || "Unknown"}</td>
                     <td className="px-4 py-3 font-mono text-foreground">{cred.username}</td>
                     <td className="px-4 py-3">
@@ -313,8 +306,111 @@ export default function CredentialsInventoryPage() {
           </tbody>
         </table>
       </div>
+=======
+      {/* Credentials Table — grouped by product */}
+      {productGroups.length === 0 ? (
+        <div className="rounded-lg border border-border bg-card py-12 text-center text-sm text-muted-foreground">
+          No credentials found
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {productGroups.map(({ product, creds }) => {
+            const groupAssigned = creds.filter((c) => c.assigned_to_buyer_id !== null).length
+            const groupAvailable = creds.length - groupAssigned
 
-      {/* Form Modal */}
+            return (
+              <div key={product?.id ?? "unknown"} className="overflow-hidden rounded-lg border border-border">
+                {/* Product header */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted px-4 py-3">
+                  <span className="font-semibold text-foreground">
+                    {product?.name ?? "Unknown Product"}
+                  </span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="rounded-full bg-card px-2 py-1 text-muted-foreground">
+                      Total: <strong>{creds.length}</strong>
+                    </span>
+                    <span className="rounded-full bg-green-100 px-2 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Available: <strong>{groupAvailable}</strong>
+                    </span>
+                    <span className="rounded-full bg-blue-100 px-2 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                      Assigned: <strong>{groupAssigned}</strong>
+                    </span>
+                  </div>
+                </div>
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
+
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border bg-muted/50">
+                    <tr>
+                      <th className="w-12 px-4 py-2 text-center font-medium text-muted-foreground">#</th>
+                      <th className="px-4 py-2 text-left font-medium text-foreground">Username</th>
+                      <th className="px-4 py-2 text-left font-medium text-foreground">Password</th>
+                      <th className="px-4 py-2 text-left font-medium text-foreground">Status</th>
+                      <th className="px-4 py-2 text-left font-medium text-foreground">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {creds.map((cred, index) => {
+                      const showPassword = showPasswords[cred.id]
+                      const isAssigned = cred.assigned_to_buyer_id !== null
+                      return (
+                        <tr
+                          key={cred.id}
+                          className={`border-b border-border last:border-0 ${isAssigned ? "opacity-60" : "hover:bg-muted/40"}`}
+                        >
+                          <td className="px-4 py-3 text-center text-muted-foreground font-mono">
+                            {index + 1}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-foreground">{cred.username}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <code className="font-mono text-foreground">
+                                {showPassword ? cred.password : "•".repeat(Math.min(cred.password.length, 12))}
+                              </code>
+                              <button
+                                onClick={() =>
+                                  setShowPasswords({ ...showPasswords, [cred.id]: !showPassword })
+                                }
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${isAssigned
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                }`}
+                            >
+                              {isAssigned ? "Assigned" : "Available"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {!isAssigned && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(cred.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Add Credentials Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6">
@@ -349,12 +445,7 @@ export default function CredentialsInventoryPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-foreground">Credentials</label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addCredentialRow}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={addCredentialRow}>
                     <Plus className="mr-2 h-3 w-3" />
                     Add Row
                   </Button>
@@ -362,6 +453,9 @@ export default function CredentialsInventoryPage() {
 
                 {form.credentials.map((cred, index) => (
                   <div key={index} className="flex gap-2">
+                    <span className="flex h-9 w-7 shrink-0 items-center justify-center text-xs text-muted-foreground">
+                      {index + 1}
+                    </span>
                     <input
                       type="text"
                       value={cred.username}

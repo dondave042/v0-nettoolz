@@ -1,0 +1,6 @@
+[info] [App Init] Starting application initialization...
+[error] [PaymentConfig] [2026-04-25T08:46:50.434Z] PaymentError(MISSING_ENV_VARS): Missing required environment variables: KORAPAY_API_KEY_SECRET [object Object]
+[error] [Payment] Configuration validation failed: PaymentError: Missing required environment variables: KORAPAY_API_KEY_SECRET
+[error] [App Init] Initialization failed: Missing required environment variables: KORAPAY_API_KEY_SECRET
+[error] [AppInitializer] Initialization error: Missing required environment variables: KORAPAY_API_KEY_SECRET
+[error] [AppInitializer] App initialized with errors: Missing required environment variables: KORAPAY_API_KEY_SECRET
