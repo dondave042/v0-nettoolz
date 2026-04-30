@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Dashboard from "./components/Dashboard"
 import Analytics from "./components/Analytics"
+import CategoriesTable from "./components/CategoriesTable"
 import ProductsTable from "./components/ProductsTable"
 import Settings from "./components/Settings"
 import Sidebar from "./components/Sidebar"
@@ -87,6 +88,12 @@ function findCategoryId(categories: ApiCategory[], product: Product) {
 
 function buildProductPayload(product: Product, categoryId: number | null) {
     const skuPrefix = product.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase() || "PROD"
+    const accounts = (product.accounts || [])
+        .map((account) => ({
+            username: (account.username || "").trim(),
+            password: (account.password || "").trim(),
+        }))
+        .filter((account) => account.username && account.password)
 
     return {
         sku: `${skuPrefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -98,8 +105,9 @@ function buildProductPayload(product: Product, categoryId: number | null) {
         badge: null,
         is_featured: false,
         images: product.images || (product.image ? [product.image] : []),
-        product_username: product.accounts[0]?.username || null,
-        product_password: product.accounts[0]?.password || null,
+        product_username: accounts[0]?.username || null,
+        product_password: accounts[0]?.password || null,
+        accounts,
     }
 }
 
@@ -204,9 +212,18 @@ export default function App({ initialTab = "dashboard" }: AppProps) {
     function renderContent() {
         switch (activeTab) {
             case "products":
-                return <ProductsTable products={products} onDeleteProduct={handleDeleteProduct} onUpdateProduct={handleUpdateProduct} />
+                return (
+                    <ProductsTable
+                        products={products}
+                        onDeleteProduct={handleDeleteProduct}
+                        onUpdateProduct={handleUpdateProduct}
+                        onManageCategories={() => setActiveTab("categories")}
+                    />
+                )
+            case "categories":
+                return <CategoriesTable />
             case "upload":
-                return <UploadProduct onAddProduct={handleAddProduct} />
+                return <UploadProduct onAddProduct={handleAddProduct} onManageCategories={() => setActiveTab("categories")} />
             case "analytics":
                 return <Analytics products={products} />
             case "users":

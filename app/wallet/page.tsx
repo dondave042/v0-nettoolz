@@ -72,6 +72,7 @@ function TxRow({ tx }: { tx: Transaction }) {
     )
 }
 
+
 export default function WalletPage() {
     const router = useRouter()
     const [data, setData] = useState<WalletData | null>(null)
@@ -79,6 +80,28 @@ export default function WalletPage() {
     const [refreshing, setRefreshing] = useState(false)
     const [topUpAmount, setTopUpAmount] = useState("")
     const [topping, setTopping] = useState(false)
+    const [prevBalance, setPrevBalance] = useState<number | null>(null)
+
+    // Track Korapay deposit notification
+    useEffect(() => {
+        if (prevBalance !== null && data && data.balance > prevBalance) {
+            // Find the latest credit transaction
+            const latestCredit = (data.transactions ?? []).find(
+                (t) => (t.direction ?? t.type) === "credit"
+            )
+            // Check Korapay deposit by note or reference
+            if (latestCredit &&
+                (
+                    (typeof latestCredit.note === "string" &&
+                        latestCredit.note.toLowerCase().includes("korapay")) ||
+                    (latestCredit.reference_id && latestCredit.reference_id.startsWith("KORA"))
+                )
+            ) {
+                toast.success("Deposit successful! Your balance has been updated.")
+            }
+        }
+        if (data) setPrevBalance(data.balance)
+    }, [data])
 
     const load = useCallback(async (silent = false) => {
         if (!silent) setLoading(true)

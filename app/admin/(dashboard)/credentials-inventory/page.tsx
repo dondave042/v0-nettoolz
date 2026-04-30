@@ -224,6 +224,89 @@ export default function CredentialsInventoryPage() {
         </select>
       </div>
 
+<<<<<<< HEAD
+      {/* Credentials List */}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead className="border-b border-border bg-muted">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-foreground">#</th>
+              <th className="px-4 py-3 text-left font-medium text-foreground">Product</th>
+              <th className="px-4 py-3 text-left font-medium text-foreground">Username</th>
+              <th className="px-4 py-3 text-left font-medium text-foreground">Password</th>
+              <th className="px-4 py-3 text-left font-medium text-foreground">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-foreground">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredCredentials.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  No credentials found
+                </td>
+              </tr>
+            ) : (
+              filteredCredentials.map((cred, index) => {
+                const product = products.find((p) => p.id === cred.product_id)
+                const showPassword = showPasswords[cred.id]
+
+                return (
+                  <tr key={cred.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                    <td className="px-4 py-3 text-foreground">{product?.name || "Unknown"}</td>
+                    <td className="px-4 py-3 font-mono text-foreground">{cred.username}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <code className="font-mono text-foreground">
+                          {showPassword ? cred.password : "•".repeat(cred.password.length)}
+                        </code>
+                        <button
+                          onClick={() =>
+                            setShowPasswords({
+                              ...showPasswords,
+                              [cred.id]: !showPassword,
+                            })
+                          }
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${cred.assigned_to_buyer_id
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-green-100 text-green-700"
+                          }`}
+                      >
+                        {cred.assigned_to_buyer_id ? "Assigned" : "Available"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {!cred.assigned_to_buyer_id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(cred.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+=======
       {/* Credentials Table — grouped by product */}
       {productGroups.length === 0 ? (
         <div className="rounded-lg border border-border bg-card py-12 text-center text-sm text-muted-foreground">
@@ -254,6 +337,7 @@ export default function CredentialsInventoryPage() {
                     </span>
                   </div>
                 </div>
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
 
                 <table className="w-full text-sm">
                   <thead className="border-b border-border bg-muted/50">

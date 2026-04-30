@@ -1,10 +1,17 @@
+<<<<<<< HEAD
+import { CheckCircle2, KeyRound, Package, Plus, Tags, Trash2 } from "lucide-react"
+import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
+=======
 import { CheckCircle2, KeyRound, Package, Plus, Trash2, Tag } from "lucide-react"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
 import { Account, Platform, Product } from "../types"
 
 interface UploadProductProps {
     onAddProduct: (product: Product) => Promise<void> | void
+    onManageCategories?: () => void
 }
 
 const emptyAccount: Omit<Account, "id"> = {
@@ -15,7 +22,7 @@ const emptyAccount: Omit<Account, "id"> = {
     status: "available",
 }
 
-export default function UploadProduct({ onAddProduct }: UploadProductProps) {
+export default function UploadProduct({ onAddProduct, onManageCategories }: UploadProductProps) {
     const [productName, setProductName] = useState("")
     const [category, setCategory] = useState("")
     const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
@@ -38,6 +45,41 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
     const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
     const [accounts, setAccounts] = useState<Omit<Account, "id">[]>([{ ...emptyAccount }])
     const [submitted, setSubmitted] = useState(false)
+    const [categories, setCategories] = useState<{ id: number; name: string; slug?: string }[]>([])
+    const [loadingCategories, setLoadingCategories] = useState(false)
+    const [categoriesError, setCategoriesError] = useState("")
+
+    useEffect(() => {
+        let active = true
+        const loadCategories = async () => {
+            setLoadingCategories(true)
+            setCategoriesError("")
+            try {
+                const response = await fetch("/api/admin/categories", { cache: "no-store" })
+                const data = await response.json()
+                if (!response.ok) {
+                    throw new Error(data?.error || "Failed to load categories")
+                }
+                if (active) {
+                    setCategories(Array.isArray(data) ? data : [])
+                }
+            } catch (error) {
+                if (active) {
+                    setCategories([])
+                    setCategoriesError(error instanceof Error ? error.message : "Failed to load categories")
+                }
+            } finally {
+                if (active) {
+                    setLoadingCategories(false)
+                }
+            }
+        }
+
+        loadCategories()
+        return () => {
+            active = false
+        }
+    }, [])
 
     async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
         const selectedFile = event.target.files?.[0]
@@ -181,6 +223,41 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <input value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Product name" className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white" required />
+<<<<<<< HEAD
+                    <div className="space-y-2">
+                        <select
+                            value={category}
+                            onChange={(event) => setCategory(event.target.value)}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white"
+                            required
+                        >
+                            <option value="" disabled>
+                                {loadingCategories
+                                    ? "Loading categories..."
+                                    : categories.length > 0
+                                        ? "Select a category"
+                                        : "No categories available"}
+                            </option>
+                            {categories.map((entry) => (
+                                <option key={entry.id} value={entry.name}>
+                                    {entry.name}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            {categoriesError && <p className="text-xs text-red-300">{categoriesError}</p>}
+                            {onManageCategories && (
+                                <button
+                                    type="button"
+                                    onClick={onManageCategories}
+                                    className="flex items-center gap-2 text-xs font-semibold text-cyan-300 transition-colors hover:text-cyan-200"
+                                >
+                                    <Tags className="h-3.5 w-3.5" />
+                                    Manage categories
+                                </button>
+                            )}
+                        </div>
+=======
                     <div className="relative">
                         <select
                             value={category}
@@ -195,6 +272,7 @@ export default function UploadProduct({ onAddProduct }: UploadProductProps) {
                             ))}
                         </select>
                         <Tag className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
                     </div>
                     <select value={platform} onChange={(event) => setPlatform(event.target.value as Platform)} className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white">
                         {(["instagram", "facebook", "twitter", "tiktok", "youtube", "linkedin", "telegram", "other"] as Platform[]).map((entry) => (
