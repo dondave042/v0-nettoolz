@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button"
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1]">
+      {/* Decorative logo backgrounds */}
+      <div className="pointer-events-none absolute inset-0 z-0 select-none">
+        <img src="/images/logo.png" alt="Logo" style={{ position: 'absolute', top: '10%', left: '5%', width: 100, opacity: 0.13, zIndex: 1 }} />
+        <img src="/apple-icon.png" alt="Apple" style={{ position: 'absolute', top: '60%', left: '10%', width: 70, opacity: 0.10, zIndex: 1 }} />
+        <img src="/icon.svg" alt="Icon" style={{ position: 'absolute', top: '20%', right: '10%', width: 90, opacity: 0.10, zIndex: 1 }} />
+        {/* Add more icons as desired for effect */}
+      </div>
+
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-15">
         <div className="absolute left-1/4 top-1/4 h-80 w-80 rounded-full bg-[#38bdf8] blur-3xl animate-pulse" />
@@ -12,9 +20,9 @@ export function HeroSection() {
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
-        <div className="flex flex-col items-center gap-12">
+        <div className="flex flex-col items-center">
           {/* Text content */}
-          <div className="max-w-3xl text-center">
+          <div className="max-w-3xl text-center [margin-top:5px]">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-5 py-2 text-sm font-semibold text-[#7dd3fc] backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
               Premium Digital Products
@@ -60,7 +68,6 @@ export function HeroSection() {
               ))}
             </div>
           </div>
-
         </div>
       </div>
     </section>
