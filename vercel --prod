@@ -1,2 +1,4 @@
+npm install -g vercel
+
 vercel --prodvercel --prod
 vercel --prod
