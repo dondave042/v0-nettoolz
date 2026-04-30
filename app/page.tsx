@@ -14,7 +14,7 @@ export default function HomePage() {
               url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_224405-saZaHhEEfjmw50VhH6xc5EJQpkuU94.png'),
               url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Copilot_20260429_222948-bIXjcnXfpXqQETwyVg9dFGukVLKyJQ.png')
             `,
-            backgroundSize: '50%, 50%',
+            backgroundSize: '25%, 50%',
             backgroundPosition: 'left center, right center',
             backgroundRepeat: 'no-repeat, no-repeat',
           }}
