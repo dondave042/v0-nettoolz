@@ -19,6 +19,7 @@ import {
   Tag,
 } from "lucide-react"
 import { useProducts } from "@/hooks/use-products"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface Product {
   id: number
@@ -42,6 +43,7 @@ interface ProductListViewProps {
 }
 
 const sortOptions = [
+  { value: "alphabetical", label: "A-Z (Alphabetical)" },
   { value: "newest", label: "Newest" },
   { value: "featured", label: "Featured" },
   { value: "price-low", label: "Price: Low to High" },
@@ -141,12 +143,15 @@ export function ProductListView({
   description = "Browse and purchase from our complete catalog",
 }: ProductListViewProps) {
   const { products, loading } = useProducts(true)
+  const isMobile = useIsMobile()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "featured">("newest")
+  // Add "alphabetical" to sortBy type and set as default
+  const [sortBy, setSortBy] = useState<"alphabetical" | "newest" | "price-low" | "price-high" | "featured">("alphabetical")
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const activeViewMode = isMobile ? "list" : viewMode
 
   // Derive categories
   const categories = useMemo(
@@ -177,6 +182,9 @@ export function ProductListView({
     // Sort
     const sorted = [...filtered]
     switch (sortBy) {
+      case "alphabetical":
+        sorted.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }))
+        break
       case "price-low":
         sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
         break
@@ -325,24 +333,26 @@ export function ProductListView({
                   ) : null}
                 </div>
 
-                <div className="flex items-center gap-1 border-l border-border pl-3">
-                  <Button
-                    variant={viewMode === "grid" ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setViewMode("grid")}
-                    className="h-9 w-9 rounded-full"
-                  >
-                    <Grid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setViewMode("list")}
-                    className="h-9 w-9 rounded-full"
-                  >
-                    <ListIcon className="h-4 w-4" />
-                  </Button>
-                </div>
+                {!isMobile ? (
+                  <div className="flex items-center gap-1 border-l border-border pl-3">
+                    <Button
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => setViewMode("grid")}
+                      className="h-9 w-9 rounded-full"
+                    >
+                      <Grid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => setViewMode("list")}
+                      className="h-9 w-9 rounded-full"
+                    >
+                      <ListIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -366,13 +376,13 @@ export function ProductListView({
             </p>
             <div
               className={
-                viewMode === "grid"
+                activeViewMode === "grid"
                   ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                   : "space-y-4"
               }
             >
               {filteredAndSortedProducts.map((product) =>
-                viewMode === "grid" ? (
+                activeViewMode === "grid" ? (
                   <div key={product.id}>
                     <ProductCard product={product} />
                   </div>

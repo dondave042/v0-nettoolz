@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 import { CheckCircle2, KeyRound, Package, Plus, Tags, Trash2 } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
+=======
+import { CheckCircle2, KeyRound, Package, Plus, Trash2, Tag } from "lucide-react"
+import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
 import { Account, Platform, Product } from "../types"
 
 interface UploadProductProps {
@@ -19,8 +25,19 @@ const emptyAccount: Omit<Account, "id"> = {
 export default function UploadProduct({ onAddProduct, onManageCategories }: UploadProductProps) {
     const [productName, setProductName] = useState("")
     const [category, setCategory] = useState("")
+    const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+    const [loadingCategories, setLoadingCategories] = useState(false)
     const [platform, setPlatform] = useState<Platform>("instagram")
     const [price, setPrice] = useState("")
+
+    useEffect(() => {
+        setLoadingCategories(true)
+        fetch("/api/admin/categories")
+            .then((res) => res.ok ? res.json() : [])
+            .then((data) => setCategories(Array.isArray(data) ? data : []))
+            .catch(() => { })
+            .finally(() => setLoadingCategories(false))
+    }, [])
     const [description, setDescription] = useState("")
     const [imageUrls, setImageUrls] = useState("")
     const [uploadingImage, setUploadingImage] = useState(false)
@@ -195,10 +212,18 @@ export default function UploadProduct({ onAddProduct, onManageCategories }: Uplo
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold text-white">Basic Information</h2>
+                        <a
+                            href="/admin/categories"
+                            className="mt-0.5 inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 hover:underline"
+                        >
+                            <Tag className="h-3 w-3" />
+                            Manage Categories
+                        </a>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <input value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Product name" className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white" required />
+<<<<<<< HEAD
                     <div className="space-y-2">
                         <select
                             value={category}
@@ -232,6 +257,22 @@ export default function UploadProduct({ onAddProduct, onManageCategories }: Uplo
                                 </button>
                             )}
                         </div>
+=======
+                    <div className="relative">
+                        <select
+                            value={category}
+                            onChange={(event) => setCategory(event.target.value)}
+                            className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white disabled:opacity-60"
+                            required
+                            disabled={loadingCategories}
+                        >
+                            <option value="" disabled>{loadingCategories ? "Loading categories…" : "Select a category"}</option>
+                            {categories.map((cat) => (
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                            ))}
+                        </select>
+                        <Tag className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
                     </div>
                     <select value={platform} onChange={(event) => setPlatform(event.target.value as Platform)} className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-white">
                         {(["instagram", "facebook", "twitter", "tiktok", "youtube", "linkedin", "telegram", "other"] as Platform[]).map((entry) => (

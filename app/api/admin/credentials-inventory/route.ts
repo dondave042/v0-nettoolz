@@ -49,6 +49,37 @@ function mapInventoryRow(row: InventoryRow) {
   }
 }
 
+async function syncProductStock(
+  sql: Awaited<ReturnType<typeof ensureCredentialsInventoryTables>>,
+  productId: number
+) {
+  const columnSet = await getInventoryColumnSet(sql)
+  const hasDistributedToBuyerId = columnSet.has('distributed_to_buyer_id')
+
+  const countRows = hasDistributedToBuyerId
+    ? await sql`
+        SELECT COUNT(*) AS count
+        FROM buyer_credentials_inventory
+        WHERE product_id = ${productId}
+          AND assigned_to_buyer_id IS NULL
+          AND distributed_to_buyer_id IS NULL
+      `
+    : await sql`
+        SELECT COUNT(*) AS count
+        FROM buyer_credentials_inventory
+        WHERE product_id = ${productId}
+          AND assigned_to_buyer_id IS NULL
+      `
+
+  const unassignedCount = Number(countRows[0]?.count ?? 0)
+
+  await sql`
+    UPDATE products
+    SET available_qty = ${unassignedCount}, updated_at = NOW()
+    WHERE id = ${productId}
+  `
+}
+
 function normalizeCredentials(credentials: RawCredentialInput[]) {
   return credentials.reduce<Array<{ username: string; password: string }>>((accumulator, credential) => {
     const username = typeof credential.username === 'string' ? credential.username.trim() : ''
@@ -203,6 +234,7 @@ export async function POST(request: Request) {
       inserted.push(mapInventoryRow(result[0] as InventoryRow))
     }
 
+<<<<<<< HEAD
     // Sync available_qty to count of unassigned credentials
     await sql`
       UPDATE products
@@ -212,6 +244,10 @@ export async function POST(request: Request) {
       )
       WHERE id = ${parsedProductId}
     `
+=======
+    // Sync product stock to match unassigned credentials count
+    await syncProductStock(sql, parsedProductId)
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
 
     return NextResponse.json(
       { inserted, count: inserted.length },
@@ -274,6 +310,7 @@ export async function DELETE(request: Request) {
       )
     }
 
+<<<<<<< HEAD
     // Get product_id before deleting so we can sync qty
     const productId = cred[0].product_id as number
 
@@ -290,6 +327,16 @@ export async function DELETE(request: Request) {
       )
       WHERE id = ${productId}
     `
+=======
+    const deleted = await sql`
+      DELETE FROM buyer_credentials_inventory WHERE id = ${id} RETURNING product_id
+    `
+
+    const productId = Number((deleted[0] as { product_id: number })?.product_id)
+    if (productId) {
+      await syncProductStock(sql, productId)
+    }
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
 
     return NextResponse.json({ success: true })
   } catch (error) {

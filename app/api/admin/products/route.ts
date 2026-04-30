@@ -3,6 +3,45 @@ import { getDb } from "@/lib/db"
 import { getAdminSession } from "@/lib/admin-auth"
 import { ensureCredentialsInventoryTables } from "@/lib/credentials-inventory"
 
+async function syncStockFromCredentials(sql: ReturnType<typeof getDb>, productId: number): Promise<number | null> {
+  // Check total credential count for this product
+  const total = await sql`
+    SELECT COUNT(*) AS count
+    FROM buyer_credentials_inventory
+    WHERE product_id = ${productId}
+  `
+  if (Number(total[0]?.count ?? 0) === 0) return null
+
+  // Check if distributed_to_buyer_id column exists
+  const colCheck = await sql`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'buyer_credentials_inventory'
+      AND column_name = 'distributed_to_buyer_id'
+  `
+  const hasDistributed = colCheck.length > 0
+
+  const rows = hasDistributed
+    ? await sql`
+        SELECT COUNT(*) AS count
+        FROM buyer_credentials_inventory
+        WHERE product_id = ${productId}
+          AND assigned_to_buyer_id IS NULL
+          AND distributed_to_buyer_id IS NULL
+      `
+    : await sql`
+        SELECT COUNT(*) AS count
+        FROM buyer_credentials_inventory
+        WHERE product_id = ${productId}
+          AND assigned_to_buyer_id IS NULL
+      `
+
+  const unassigned = Number(rows[0]?.count ?? 0)
+  await sql`
+    UPDATE products SET available_qty = ${unassigned}, updated_at = NOW() WHERE id = ${productId}
+  `
+  return unassigned
+}
+
 const rolesAllowedToManageCatalog = new Set([
   "admin",
   "super_admin",
@@ -60,6 +99,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
+<<<<<<< HEAD
     const {
       sku,
       name,
@@ -74,6 +114,9 @@ export async function POST(request: Request) {
       product_password,
       accounts,
     } = body
+=======
+    const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password, credentials } = body
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
 
     const normalizedCredentials = Array.isArray(accounts)
       ? normalizeCredentials(accounts as RawCredentialInput[])
@@ -88,6 +131,7 @@ export async function POST(request: Request) {
       VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${initialQty}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${fallbackUsername}, ${fallbackPassword})
       RETURNING *
     `
+<<<<<<< HEAD
 
     let createdProduct = result[0]
 
@@ -151,6 +195,25 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(createdProduct, { status: 201 })
+=======
+    const newProductId = Number(result[0]?.id)
+
+    // Insert credentials if provided
+    if (Array.isArray(credentials) && credentials.length > 0) {
+      for (const cred of credentials) {
+        if (cred.username || cred.password) {
+          await sql`
+            INSERT INTO buyer_credentials_inventory (product_id, username, password)
+            VALUES (${newProductId}, ${cred.username || ""}, ${cred.password || ""})
+          `
+        }
+      }
+    }
+
+    const syncedQty = await syncStockFromCredentials(sql, newProductId)
+    const product = syncedQty !== null ? { ...result[0], available_qty: syncedQty } : result[0]
+    return NextResponse.json(product, { status: 201 })
+>>>>>>> 0f2e7110f829d189f9832deeba380d8d919a4c03
   } catch (error) {
     console.error("Create product error:", error)
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
@@ -166,7 +229,7 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json()
-    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
+    const { id, sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password, credentials } = body
 
     const sql = getDb()
     const result = await sql`
@@ -181,7 +244,45 @@ export async function PUT(request: Request) {
       WHERE id = ${id}
       RETURNING *
     `
-    return NextResponse.json(result[0])
+
+    // Handle credentials: delete old ones and insert new ones
+    if (Array.isArray(credentials) && credentials.length > 0) {
+      // Get existing credential IDs from the form
+      const existingIds = credentials
+        .filter((cred) => cred.id)
+        .map((cred) => Number(cred.id))
+
+      // Delete credentials that were removed (not in the new list)
+      if (existingIds.length > 0) {
+        await sql`
+          DELETE FROM buyer_credentials_inventory
+          WHERE product_id = ${Number(id)}
+            AND id NOT IN (${sql(existingIds)})
+            AND assigned_to_buyer_id IS NULL
+        `
+      } else {
+        // If no IDs provided, delete all unassigned credentials for this product
+        await sql`
+          DELETE FROM buyer_credentials_inventory
+          WHERE product_id = ${Number(id)}
+            AND assigned_to_buyer_id IS NULL
+        `
+      }
+
+      // Insert new credentials
+      for (const cred of credentials) {
+        if (!cred.id && (cred.username || cred.password)) {
+          await sql`
+            INSERT INTO buyer_credentials_inventory (product_id, username, password)
+            VALUES (${Number(id)}, ${cred.username || ""}, ${cred.password || ""})
+          `
+        }
+      }
+    }
+
+    const syncedQty = await syncStockFromCredentials(sql, Number(id))
+    const product = syncedQty !== null ? { ...result[0], available_qty: syncedQty } : result[0]
+    return NextResponse.json(product)
   } catch (error) {
     console.error("Update product error:", error)
     return NextResponse.json({ error: "Failed to update product" }, { status: 500 })
