@@ -203,6 +203,16 @@ export async function POST(request: Request) {
       inserted.push(mapInventoryRow(result[0] as InventoryRow))
     }
 
+    // Sync available_qty to count of unassigned credentials
+    await sql`
+      UPDATE products
+      SET available_qty = (
+        SELECT COUNT(*) FROM buyer_credentials_inventory
+        WHERE product_id = ${parsedProductId} AND assigned_to_buyer_id IS NULL
+      )
+      WHERE id = ${parsedProductId}
+    `
+
     return NextResponse.json(
       { inserted, count: inserted.length },
       { status: 201 }
@@ -240,12 +250,12 @@ export async function DELETE(request: Request) {
     // Check if credential is assigned
     const cred = hasDistributedToBuyerId
       ? await sql`
-          SELECT assigned_to_buyer_id, distributed_to_buyer_id
+          SELECT product_id, assigned_to_buyer_id, distributed_to_buyer_id
           FROM buyer_credentials_inventory
           WHERE id = ${id}
         `
       : await sql`
-          SELECT assigned_to_buyer_id
+          SELECT product_id, assigned_to_buyer_id
           FROM buyer_credentials_inventory
           WHERE id = ${id}
         `
@@ -264,8 +274,21 @@ export async function DELETE(request: Request) {
       )
     }
 
+    // Get product_id before deleting so we can sync qty
+    const productId = cred[0].product_id as number
+
     await sql`
       DELETE FROM buyer_credentials_inventory WHERE id = ${id}
+    `
+
+    // Sync available_qty to count of unassigned credentials
+    await sql`
+      UPDATE products
+      SET available_qty = (
+        SELECT COUNT(*) FROM buyer_credentials_inventory
+        WHERE product_id = ${productId} AND assigned_to_buyer_id IS NULL
+      )
+      WHERE id = ${productId}
     `
 
     return NextResponse.json({ success: true })

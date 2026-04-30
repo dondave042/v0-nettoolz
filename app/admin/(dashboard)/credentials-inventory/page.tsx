@@ -239,6 +239,7 @@ export default function CredentialsInventoryPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted">
             <tr>
+              <th className="px-4 py-3 text-left font-medium text-foreground">#</th>
               <th className="px-4 py-3 text-left font-medium text-foreground">Product</th>
               <th className="px-4 py-3 text-left font-medium text-foreground">Username</th>
               <th className="px-4 py-3 text-left font-medium text-foreground">Password</th>
@@ -249,17 +250,18 @@ export default function CredentialsInventoryPage() {
           <tbody>
             {filteredCredentials.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No credentials found
                 </td>
               </tr>
             ) : (
-              filteredCredentials.map((cred) => {
+              filteredCredentials.map((cred, index) => {
                 const product = products.find((p) => p.id === cred.product_id)
                 const showPassword = showPasswords[cred.id]
 
                 return (
                   <tr key={cred.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
                     <td className="px-4 py-3 text-foreground">{product?.name || "Unknown"}</td>
                     <td className="px-4 py-3 font-mono text-foreground">{cred.username}</td>
                     <td className="px-4 py-3">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 import { getAdminSession } from "@/lib/admin-auth"
+import { ensureCredentialsInventoryTables } from "@/lib/credentials-inventory"
 
 const rolesAllowedToManageCatalog = new Set([
   "admin",
@@ -16,6 +17,24 @@ function canManageCatalog(role?: string) {
   }
 
   return rolesAllowedToManageCatalog.has(role)
+}
+
+type RawCredentialInput = {
+  username?: unknown
+  password?: unknown
+}
+
+function normalizeCredentials(credentials: RawCredentialInput[]) {
+  return credentials.reduce<Array<{ username: string; password: string }>>((accumulator, credential) => {
+    const username = typeof credential.username === "string" ? credential.username.trim() : ""
+    const password = typeof credential.password === "string" ? credential.password.trim() : ""
+
+    if (username && password) {
+      accumulator.push({ username, password })
+    }
+
+    return accumulator
+  }, [])
 }
 
 export async function GET() {
@@ -41,15 +60,97 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password } = body
+    const {
+      sku,
+      name,
+      description,
+      price,
+      available_qty,
+      category_id,
+      badge,
+      is_featured,
+      images,
+      product_username,
+      product_password,
+      accounts,
+    } = body
 
-    const sql = getDb()
+    const normalizedCredentials = Array.isArray(accounts)
+      ? normalizeCredentials(accounts as RawCredentialInput[])
+      : []
+    const initialQty = normalizedCredentials.length > 0 ? normalizedCredentials.length : parseInt(available_qty)
+    const fallbackUsername = normalizedCredentials[0]?.username ?? product_username ?? null
+    const fallbackPassword = normalizedCredentials[0]?.password ?? product_password ?? null
+
+    const sql = await ensureCredentialsInventoryTables()
     const result = await sql`
       INSERT INTO products (sku, name, description, price, available_qty, category_id, badge, is_featured, images, product_username, product_password)
-      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${parseInt(available_qty)}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${product_username || null}, ${product_password || null})
+      VALUES (${sku}, ${name}, ${description}, ${parseFloat(price)}, ${initialQty}, ${category_id || null}, ${badge || null}, ${is_featured || false}, ${images ? JSON.stringify(images) : null}, ${fallbackUsername}, ${fallbackPassword})
       RETURNING *
     `
-    return NextResponse.json(result[0], { status: 201 })
+
+    let createdProduct = result[0]
+
+    if (normalizedCredentials.length > 0) {
+      const productId = Number(createdProduct.id)
+
+      const credentialColumns = await sql`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'buyer_credentials_inventory'
+      `
+      const hasCredentialsIndex = credentialColumns.some((row) => (row as { column_name: string }).column_name === "credentials_index")
+
+      let nextCredentialsIndex = 0
+      if (hasCredentialsIndex) {
+        const nextIndexRows = await sql`
+          SELECT COALESCE(MAX(credentials_index), 0) AS max_index
+          FROM buyer_credentials_inventory
+          WHERE product_id = ${productId}
+        `
+        nextCredentialsIndex = Number(nextIndexRows[0]?.max_index ?? 0)
+      }
+
+      for (const credential of normalizedCredentials) {
+        if (hasCredentialsIndex) {
+          await sql`
+            INSERT INTO buyer_credentials_inventory (product_id, credentials_index, username, password, credential_data)
+            VALUES (
+              ${productId},
+              ${nextCredentialsIndex + 1},
+              ${credential.username},
+              ${credential.password},
+              ${JSON.stringify({ username: credential.username, password: credential.password })}
+            )
+          `
+          nextCredentialsIndex += 1
+        } else {
+          await sql`
+            INSERT INTO buyer_credentials_inventory (product_id, username, password, credential_data)
+            VALUES (
+              ${productId},
+              ${credential.username},
+              ${credential.password},
+              ${JSON.stringify({ username: credential.username, password: credential.password })}
+            )
+          `
+        }
+      }
+
+      const synced = await sql`
+        UPDATE products
+        SET available_qty = (
+          SELECT COUNT(*) FROM buyer_credentials_inventory
+          WHERE product_id = ${productId} AND assigned_to_buyer_id IS NULL
+        )
+        WHERE id = ${productId}
+        RETURNING *
+      `
+
+      createdProduct = synced[0] || createdProduct
+    }
+
+    return NextResponse.json(createdProduct, { status: 201 })
   } catch (error) {
     console.error("Create product error:", error)
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
