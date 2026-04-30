@@ -1,5 +1,9 @@
+'use client'
+
+import { useState } from "react"
+import { Users, Play, Gamepad2, Mail, Shield, Cloud, ChevronDown } from "lucide-react"
 import { getDb } from "@/lib/db"
-import { Users, Play, Gamepad2, Mail, Shield, Cloud } from "lucide-react"
+import { HomepageProductsGrid } from "@/components/homepage-products-grid"
 
 const iconMap: Record<string, React.ElementType> = {
   Users, Play, Gamepad2, Mail, Shield, Cloud,
@@ -13,9 +17,13 @@ interface Category {
   icon: string
 }
 
-export async function CategoriesSection() {
+async function getCategories(): Promise<Category[]> {
   const sql = getDb()
-  const categories = await sql`SELECT * FROM categories ORDER BY sort_order` as Category[]
+  return await sql`SELECT * FROM categories ORDER BY sort_order` as Category[]
+}
+
+export async function CategoriesSection() {
+  const categories = await getCategories()
 
   return (
     <section id="categories" className="relative bg-background py-20 lg:py-28">
@@ -33,7 +41,36 @@ export async function CategoriesSection() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <HomepageProductsGrid />
+        <CategoriesToggle categories={categories} />
+      </div>
+    </section>
+  )
+}
+
+function CategoriesToggle({ categories }: { categories: Category[] }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <div className="flex flex-col items-center gap-6">
+      {/* Category Toggle Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 rounded-full border border-[#38bdf8] bg-[#e0f2fe]/10 px-6 py-3 text-sm font-semibold text-[#0284c7] transition-all duration-300 hover:bg-[#e0f2fe]/20 hover:shadow-lg hover:shadow-[#38bdf8]/20"
+      >
+        <span>View Categories</span>
+        <ChevronDown 
+          className={`h-4 w-4 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Category Grid - Hidden by default, shown on toggle */}
+      <div
+        className={`w-full transition-all duration-500 ease-out overflow-hidden ${
+          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pt-4">
           {categories.map((cat) => {
             const Icon = iconMap[cat.icon] || Users
             return (
@@ -58,6 +95,6 @@ export async function CategoriesSection() {
           })}
         </div>
       </div>
-    </section>
+    </div>
   )
 }
