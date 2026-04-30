@@ -1,4 +1,5 @@
 npm install -g vercel
 
+vercel login
 vercel --prodvercel --prod
 vercel --prod
