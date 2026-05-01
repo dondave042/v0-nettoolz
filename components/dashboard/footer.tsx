@@ -71,7 +71,17 @@ export function DashboardFooter() {
           </div>
         </div>
 
-        <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between">
+        <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-8">
+          <div className="flex-shrink-0">
+            <div className="relative">
+              <img
+                src="/images/logo.png"
+                alt="NETTOOLZ Premium Web Logs"
+                className="relative h-24 w-24"
+                style={{ boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }}
+              />
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
             &copy; {currentYear} NETTOOLZ. All rights reserved.
           </p>
