@@ -5,19 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "PowerShell Launch Script",
-            "type": "PowerShell",
-            "request": "launch",
-            "script": "Enter path or command to execute, for example, ${workspaceFolder}/src/foo.ps1 or Invoke-Pester",
-            "cwd": "${cwd}"
-        },
-        {
-            "name": "PowerShell: Windows PowerShell",
-            "type": "PowerShell",
-            "request": "launch",
-            "sessionName": "Windows PowerShell (x64)"
-        },
-        {
             "name": "PowerShell Attach to Host Process",
             "type": "PowerShell",
             "request": "attach"
