@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState } from "react"
 import { Users, Play, Gamepad2, Mail, Shield, Cloud, ChevronDown } from "lucide-react"
 import { getDb } from "@/lib/db"
 import { HomepageProductsGrid } from "@/components/homepage-products-grid"

@@ -45,7 +45,7 @@ export function FeaturesSection() {
       <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
         <div className="mb-16 text-center">
           <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-[#7dd3fc] mb-4 backdrop-blur-sm">WHY CHOOSE US</span>
-          <h2 className="mb-4 font-[var(--font-heading)] text-4xl font-bold text-white md:text-5xl bg-[#1985ba]">
+          <h2 className="mb-4 font-[var(--font-heading)] text-4xl font-bold text-white md:text-5xl">
             Unbeatable Features & Benefits
           </h2>
           <p className="mx-auto max-w-3xl text-lg text-[#bae6fd]">
