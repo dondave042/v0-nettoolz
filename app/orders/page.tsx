@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import {
     Package,
@@ -19,16 +18,29 @@ import {
     ChevronDown,
     ChevronUp,
     Receipt,
+    Copy,
+    Eye,
+    EyeOff,
 } from "lucide-react"
+
+interface Credential {
+    id: number | null
+    username: string | null
+    password: string | null
+}
 
 interface Order {
     id: number
+    product_id?: number | null
     product_name: string
     quantity: number
     total_price: string
     payment_status: string
     order_status?: string
     payment_method_name?: string
+    payment_error_message?: string | null
+    credential_count?: number
+    credentials: Credential[]
     created_at: string
 }
 
@@ -52,10 +64,16 @@ function StatusBadge({ status }: { status: string }) {
 
 function OrderCard({ order }: { order: Order }) {
     const [expanded, setExpanded] = useState(false)
+    const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
     const date = new Date(order.created_at)
 
     const formatPrice = (price: string | number) =>
         `₦${Number(price).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
+
+    function copyToClipboard(text: string, label: string) {
+        navigator.clipboard.writeText(text)
+        toast.success(`${label} copied`)
+    }
 
     return (
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-[#38bdf8]/30">
@@ -102,7 +120,77 @@ function OrderCard({ order }: { order: Order }) {
                         <dd>
                             <StatusBadge status={order.payment_status} />
                         </dd>
+                        <dt className="text-muted-foreground">Credentials</dt>
+                        <dd className="text-foreground">{order.credential_count ?? order.credentials.length}</dd>
                     </dl>
+
+                    {order.payment_status === "completed" && order.credentials.length > 0 ? (
+                        <div className="mt-4 space-y-3 rounded-xl border border-green-200/70 bg-green-50/40 p-4 dark:border-green-900 dark:bg-green-950/20">
+                            <p className="text-sm font-semibold text-foreground">Assigned Credentials</p>
+                            {order.credentials.map((credential, index) => {
+                                const passwordKey = `${order.id}-${index}`
+                                return (
+                                    <div key={credential.id ?? `${order.id}-${index}`} className="space-y-3 rounded-lg border border-border bg-background p-3">
+                                        {credential.username ? (
+                                            <div>
+                                                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Username</p>
+                                                <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-2.5">
+                                                    <code className="flex-1 text-sm text-foreground">{credential.username}</code>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => copyToClipboard(credential.username as string, "Username")}
+                                                        className="text-muted-foreground transition-colors hover:text-foreground"
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : null}
+
+                                        {credential.password ? (
+                                            <div>
+                                                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Password</p>
+                                                <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-2.5">
+                                                    <code className="flex-1 text-sm text-foreground">
+                                                        {showPasswords[passwordKey]
+                                                            ? credential.password
+                                                            : "•".repeat(credential.password.length)}
+                                                    </code>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setShowPasswords((previous) => ({
+                                                                ...previous,
+                                                                [passwordKey]: !previous[passwordKey],
+                                                            }))
+                                                        }
+                                                        className="text-muted-foreground transition-colors hover:text-foreground"
+                                                    >
+                                                        {showPasswords[passwordKey] ? (
+                                                            <EyeOff className="h-4 w-4" />
+                                                        ) : (
+                                                            <Eye className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => copyToClipboard(credential.password as string, "Password")}
+                                                        className="text-muted-foreground transition-colors hover:text-foreground"
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : null}
+
+                    {order.payment_status === "completed" && order.credentials.length === 0 ? (
+                        <p className="mt-4 text-sm text-muted-foreground">Credentials are still being prepared for this order.</p>
+                    ) : null}
                 </div>
             )}
         </div>
@@ -189,8 +277,8 @@ export default function OrdersPage() {
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all capitalize ${filter === f
-                                        ? "bg-[#38bdf8] text-white"
-                                        : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"
+                                    ? "bg-[#38bdf8] text-white"
+                                    : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"
                                     }`}
                             >
                                 {f}

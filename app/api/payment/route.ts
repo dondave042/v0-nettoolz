@@ -70,6 +70,12 @@ export async function POST(request: Request) {
     const { amount, currency, email } = body
     const normalizedOrderIds = normalizeOrderIds(body)
     const normalizedAmount = Number(amount)
+    const requestOrigin = new URL(request.url).origin
+    const callbackBaseUrl =
+      process.env.NODE_ENV === 'production' &&
+        (!config.webhookBaseUrl || /localhost|127\.0\.0\.1/i.test(config.webhookBaseUrl))
+        ? requestOrigin
+        : config.webhookBaseUrl
 
     // Validate required fields
     if (normalizedOrderIds.length === 0 || !normalizedAmount || !currency || !email) {
@@ -132,8 +138,8 @@ export async function POST(request: Request) {
               buyer_id: buyer.id,
               payment_kind: 'order',
             },
-            notification_url: `${config.webhookBaseUrl}/api/webhooks/korapay`,
-            redirect_url: `${config.webhookBaseUrl}/dashboard?refresh=payment`,
+            notification_url: `${callbackBaseUrl}/api/webhooks/korapay`,
+            redirect_url: `${callbackBaseUrl}/dashboard?refresh=payment`,
           }),
         }
       )

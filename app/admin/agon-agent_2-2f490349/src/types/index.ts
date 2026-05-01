@@ -16,6 +16,7 @@ export interface Product {
     quantity: number
     status: "active" | "inactive" | "sold_out"
     image?: string
+    images?: string[]
     description: string
     accounts: Account[]
     createdAt: Date
@@ -41,6 +42,6 @@ export interface DashboardStats {
     lowStockProducts: number
 }
 
-export type AdminTab = "dashboard" | "products" | "upload" | "analytics" | "settings"
+export type AdminTab = "dashboard" | "products" | "categories" | "upload" | "analytics" | "users" | "settings"
 
 export type Platform = Product["platform"]

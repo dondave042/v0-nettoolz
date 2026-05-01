@@ -72,6 +72,7 @@ function TxRow({ tx }: { tx: Transaction }) {
     )
 }
 
+
 export default function WalletPage() {
     const router = useRouter()
     const [data, setData] = useState<WalletData | null>(null)
@@ -79,6 +80,28 @@ export default function WalletPage() {
     const [refreshing, setRefreshing] = useState(false)
     const [topUpAmount, setTopUpAmount] = useState("")
     const [topping, setTopping] = useState(false)
+    const [prevBalance, setPrevBalance] = useState<number | null>(null)
+
+    // Track Korapay deposit notification
+    useEffect(() => {
+        if (prevBalance !== null && data && data.balance > prevBalance) {
+            // Find the latest credit transaction
+            const latestCredit = (data.transactions ?? []).find(
+                (t) => (t.direction ?? t.type) === "credit"
+            )
+            // Check Korapay deposit by note or reference
+            if (latestCredit &&
+                (
+                    (typeof latestCredit.note === "string" &&
+                        latestCredit.note.toLowerCase().includes("korapay")) ||
+                    (latestCredit.reference_id && latestCredit.reference_id.startsWith("KORA"))
+                )
+            ) {
+                toast.success("Deposit successful! Your balance has been updated.")
+            }
+        }
+        if (data) setPrevBalance(data.balance)
+    }, [data])
 
     const load = useCallback(async (silent = false) => {
         if (!silent) setLoading(true)
@@ -130,8 +153,11 @@ export default function WalletPage() {
             })
             const result = await res.json()
             if (!res.ok) throw new Error(result.error ?? "Top-up failed")
-            if (result.checkoutUrl) {
-                window.location.href = result.checkoutUrl
+
+            const checkoutUrl = result.checkout_url || result.checkoutUrl
+
+            if (checkoutUrl) {
+                window.location.href = checkoutUrl
             } else {
                 toast.success("Top-up initiated")
                 setTopUpAmount("")
@@ -225,8 +251,8 @@ export default function WalletPage() {
                                             key={amt}
                                             onClick={() => setTopUpAmount(String(amt))}
                                             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${topUpAmount === String(amt)
-                                                    ? "border-[#38bdf8] bg-[#38bdf8]/10 text-[#38bdf8]"
-                                                    : "border-border text-muted-foreground hover:border-[#38bdf8]/50 hover:text-foreground"
+                                                ? "border-[#38bdf8] bg-[#38bdf8]/10 text-[#38bdf8]"
+                                                : "border-border text-muted-foreground hover:border-[#38bdf8]/50 hover:text-foreground"
                                                 }`}
                                         >
                                             ₦{amt.toLocaleString()}

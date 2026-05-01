@@ -1,12 +1,13 @@
-import { ChevronDown, Copy, Edit3, Eye, Facebook, Instagram, Linkedin, Lock, Monitor, MoreHorizontal, Music2, Search, Send, Shield, Trash2, Twitter, Unlock } from "lucide-react"
+import { ChevronDown, Copy, Edit3, Eye, Facebook, Instagram, Linkedin, Lock, Monitor, MoreHorizontal, Music2, Search, Send, Shield, Tags, Trash2, Twitter, Unlock } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useState } from "react"
 import { Platform, Product } from "../types"
 
 interface ProductsTableProps {
     products: Product[]
-    onDeleteProduct: (id: string) => void
+    onDeleteProduct: (id: string) => Promise<void> | void
     onUpdateProduct: (product: Product) => void
+    onManageCategories?: () => void
 }
 
 const platformIcons: Record<Platform, React.ReactNode> = {
@@ -21,7 +22,7 @@ const platformIcons: Record<Platform, React.ReactNode> = {
     other: <Shield className="h-4 w-4" />,
 }
 
-export default function ProductsTable({ products, onDeleteProduct }: ProductsTableProps) {
+export default function ProductsTable({ products, onDeleteProduct, onManageCategories }: ProductsTableProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
     const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
@@ -32,11 +33,32 @@ export default function ProductsTable({ products, onDeleteProduct }: ProductsTab
             product.category.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    async function handleDeleteProduct(id: string, event: React.MouseEvent<HTMLButtonElement>) {
+        event.stopPropagation()
+        try {
+            await onDeleteProduct(id)
+        } catch (error) {
+            console.error("[ProductsTable] Failed to delete product:", error)
+        }
+    }
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">Products & Credentials</h1>
-                <p className="mt-1 text-slate-400">Manage your products and view account credentials</p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-white">Products & Credentials</h1>
+                    <p className="mt-1 text-slate-400">Manage your products and view account credentials</p>
+                </div>
+                {onManageCategories && (
+                    <button
+                        type="button"
+                        onClick={onManageCategories}
+                        className="flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+                    >
+                        <Tags className="h-4 w-4" />
+                        Manage Categories
+                    </button>
+                )}
             </div>
 
             <div className="relative">
@@ -74,7 +96,7 @@ export default function ProductsTable({ products, onDeleteProduct }: ProductsTab
                                 <button className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-cyan-400">
                                     <Edit3 className="h-4 w-4" />
                                 </button>
-                                <button onClick={(event) => { event.stopPropagation(); onDeleteProduct(product.id) }} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400">
+                                <button onClick={(event) => handleDeleteProduct(product.id, event)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400">
                                     <Trash2 className="h-4 w-4" />
                                 </button>
                             </div>

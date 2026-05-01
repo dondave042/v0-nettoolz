@@ -3,19 +3,11 @@
 import { Suspense, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, ArrowLeft, Check } from "lucide-react"
+import { Loader2, ArrowLeft, Check, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PaymentMethodSelector } from "@/components/payment-method-selector"
 import { toast } from "sonner"
 import { useCart } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/currency"
-
-interface PaymentMethod {
-  id: number
-  name: string
-  type: string
-  config: Record<string, unknown> | null
-}
 
 interface CheckoutOrder {
   id: number
@@ -25,26 +17,16 @@ interface BuyerSession {
   id: number
   email: string
   name: string
-}
-
-function isBalanceMethod(type: string | null | undefined) {
-  const normalized = String(type || '').trim().toLowerCase()
-  return normalized === 'dashboard' || normalized === 'balance' || normalized === 'wallet'
+  balance?: number
 }
 
 function CheckoutContent() {
   const router = useRouter()
   const { items, clearCart } = useCart()
   const [buyer, setBuyer] = useState<BuyerSession | null>(null)
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [completed, setCompleted] = useState(false)
-
-  const [form, setForm] = useState({
-    payment_method_id: "",
-    payment_method_type: "",
-  })
 
   useEffect(() => {
     // Check authentication
@@ -57,7 +39,6 @@ function CheckoutContent() {
         }
         const data = await res.json()
         setBuyer(data.buyer)
-        await fetchPaymentMethods()
       } catch (error) {
         console.error('[v0] Auth check error:', error)
         router.push('/login?returnUrl=/checkout')
@@ -88,35 +69,8 @@ function CheckoutContent() {
     )
   }
 
-  async function fetchPaymentMethods() {
-    try {
-      const res = await fetch('/api/payment-methods')
-      if (res.ok) {
-        const data = await res.json()
-        setPaymentMethods(data.methods || [])
-        if (data.methods && data.methods.length > 0) {
-          setForm((prev) => ({
-            ...prev,
-            payment_method_id: data.methods[0].id.toString(),
-            payment_method_type: data.methods[0].type,
-          }))
-        }
-      } else {
-        toast.error('No payment methods available')
-      }
-    } catch (error) {
-      console.error('[v0] Failed to fetch payment methods:', error)
-      toast.error('Failed to load payment methods')
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-
-    if (!form.payment_method_id) {
-      toast.error('Please select a payment method')
-      return
-    }
 
     if (!buyer) {
       toast.error('User information not available')
@@ -125,8 +79,12 @@ function CheckoutContent() {
 
     setSubmitting(true)
     try {
-      // Step 1: Create order
       const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+      if (Number(buyer.balance ?? 0) < totalPrice) {
+        toast.error('Insufficient wallet balance for this purchase')
+        return
+      }
 
       const checkoutRes = await fetch('/api/checkout', {
         method: 'POST',
@@ -136,7 +94,6 @@ function CheckoutContent() {
             product_id: item.productId,
             quantity: item.quantity,
           })),
-          payment_method_id: parseInt(form.payment_method_id),
         }),
       })
 
@@ -151,45 +108,11 @@ function CheckoutContent() {
       if (orderData.completed) {
         clearCart()
         setCompleted(true)
+        setBuyer((previous) => previous ? { ...previous, balance: Number(previous.balance ?? 0) - totalPrice } : previous)
         toast.success('Order completed successfully')
         setTimeout(() => router.push('/my-purchases'), 1200)
         return
       }
-
-      const orderIds = Array.isArray(orderData.orders)
-        ? orderData.orders.map((order: CheckoutOrder) => order.id)
-        : [orderData.order.id]
-
-      // Step 2: Initialize payment with Korapay
-      const paymentRes = await fetch('/api/payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderIds,
-          amount: totalPrice,
-          currency: 'NGN',
-          email: buyer.email,
-        }),
-      })
-
-      if (!paymentRes.ok) {
-        const error = await paymentRes.json()
-        toast.error(error.error || 'Failed to initialize payment')
-        return
-      }
-
-      const paymentData = await paymentRes.json()
-
-      if (!paymentData.checkout_url) {
-        toast.error('Payment URL not available')
-        return
-      }
-
-      // Clear cart before redirecting to payment
-      clearCart()
-
-      // Redirect to Korapay checkout
-      window.location.href = paymentData.checkout_url
     } catch (error) {
       console.error('[v0] Checkout error:', error)
       toast.error('An error occurred during checkout')
@@ -207,8 +130,8 @@ function CheckoutContent() {
   }
 
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const selectedMethod = paymentMethods.find((method) => method.id.toString() === form.payment_method_id)
-  const shouldPayFromBalance = isBalanceMethod(selectedMethod?.type || form.payment_method_type)
+  const buyerBalance = Number(buyer?.balance ?? 0)
+  const hasEnoughBalance = buyerBalance >= totalPrice
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary px-4 py-8">
@@ -267,12 +190,21 @@ function CheckoutContent() {
               {/* Payment Method Selection */}
               <div className="space-y-4 rounded-xl border border-border bg-card p-6">
                 <h2 className="text-lg font-semibold text-foreground">Payment Method</h2>
-                <PaymentMethodSelector
-                  selectedMethodId={form.payment_method_id ? parseInt(form.payment_method_id) : undefined}
-                  onSelect={(methodId, methodType) =>
-                    setForm({ ...form, payment_method_id: methodId.toString(), payment_method_type: methodType })
-                  }
-                />
+                <div className="rounded-xl border border-[#38bdf8]/30 bg-[#38bdf8]/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg bg-[#38bdf8]/15 p-2 text-[#0284c7]">
+                      <Wallet className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">Wallet Balance</p>
+                      <p className="text-sm text-muted-foreground">All purchases are deducted instantly from the buyer balance.</p>
+                      <p className="text-sm text-foreground">Available balance: <span className="font-semibold text-[#0284c7]">{formatPrice(buyerBalance)}</span></p>
+                      {!hasEnoughBalance && (
+                        <p className="text-sm text-red-500">Insufficient balance. Top up your wallet with Korapay before completing this purchase.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -293,7 +225,7 @@ function CheckoutContent() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <Button
                   type="submit"
-                  disabled={submitting || paymentMethods.length === 0}
+                  disabled={submitting || !hasEnoughBalance}
                   className="w-full bg-[#38bdf8] text-white hover:bg-[#0ea5e9]"
                 >
                   {submitting ? (
@@ -302,13 +234,18 @@ function CheckoutContent() {
                       Processing...
                     </>
                   ) : (
-                    shouldPayFromBalance ? 'Pay With Balance' : 'Place Order'
+                    'Pay With Balance'
                   )}
                 </Button>
-                {shouldPayFromBalance && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    This order will complete instantly using your account balance.
-                  </p>
+                <p className="text-center text-xs text-muted-foreground">
+                  This order will complete instantly using your account balance.
+                </p>
+                {!hasEnoughBalance && (
+                  <Link href="/quick-pay" className="block">
+                    <Button variant="outline" className="w-full">
+                      Top Up With Korapay
+                    </Button>
+                  </Link>
                 )}
                 <Link href="/products" className="block">
                   <Button variant="outline" className="w-full">

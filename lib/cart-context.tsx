@@ -24,12 +24,44 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 const MAX_CART_ITEM_QUANTITY = 100
 
+type SavedCartItem = Partial<CartItem> & {
+  id?: number | string
+  name?: string
+  image_url?: string | null
+}
+
 function clampCartQuantity(quantity: number) {
   if (!Number.isFinite(quantity)) {
     return 1
   }
 
   return Math.min(MAX_CART_ITEM_QUANTITY, Math.max(1, Math.floor(quantity)))
+}
+
+function normalizeSavedCartItem(item: SavedCartItem): CartItem | null {
+  const productId = Number(item.productId ?? item.id)
+  const price = Number(item.price)
+  const quantity = Number(item.quantity)
+  const productName = String(item.productName ?? item.name ?? '').trim()
+  const image = typeof item.image === 'string'
+    ? item.image
+    : (typeof item.image_url === 'string' ? item.image_url : null)
+
+  if (!Number.isInteger(productId) || productId <= 0) {
+    return null
+  }
+
+  if (!Number.isFinite(price) || price < 0 || productName.length === 0) {
+    return null
+  }
+
+  return {
+    productId,
+    productName,
+    price,
+    quantity: clampCartQuantity(quantity),
+    image,
+  }
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
@@ -41,7 +73,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const savedCart = localStorage.getItem('cart')
     if (savedCart) {
       try {
-        setItems(JSON.parse(savedCart))
+        const parsed = JSON.parse(savedCart)
+        const normalized = Array.isArray(parsed)
+          ? parsed
+            .map((item) => normalizeSavedCartItem(item as SavedCartItem))
+            .filter((item): item is CartItem => item !== null)
+          : []
+
+        setItems(normalized)
       } catch (error) {
         console.error('[v0] Failed to parse cart from localStorage:', error)
       }
