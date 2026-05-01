@@ -279,7 +279,61 @@ export default function ShopPage() {
                                                         Add to Cart
                                                     </Button>
                                                 </div>
+                            <div className="flex flex-col gap-3">
+                                {filtered.map((product) => (
+                                    <div
+                                        key={product.id}
+                                        className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm transition-all hover:border-[#38bdf8]/50 hover:shadow-md"
+                                    >
+                                        {/* Product image / placeholder */}
+                                        <div className="flex h-32 w-32 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0c4a6e]/30 to-[#075985]/30">
+                                            {product.image_url ? (
+                                                <img
+                                                    src={product.image_url}
+                                                    alt={product.name}
+                                                    className="h-full w-full object-cover rounded-xl"
+                                                />
+                                            ) : (
+                                                <Package className="h-14 w-14 text-[#38bdf8]/40" />
+                                            )}
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex flex-1 flex-col gap-2">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        {product.category && (
+                                                            <span className="text-xs font-medium text-[#38bdf8]">{product.category}</span>
+                                                        )}
+                                                        {product.featured && (
+                                                            <Badge className="bg-amber-500/90 text-white text-[10px]">
+                                                                <Star className="mr-1 h-2.5 w-2.5" />
+                                                                Featured
+                                                            </Badge>
+                                                        )}
+                                                        {product.available_qty === 0 && (
+                                                            <Badge variant="destructive" className="text-[10px]">Out of stock</Badge>
+                                                        )}
+                                                    </div>
+                                                    <h3 className="font-semibold text-foreground">{product.name}</h3>
+                                                    <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                                                </div>
+                                                <span className="text-lg font-bold text-foreground flex-shrink-0">{formatPrice(product.price)}</span>
                                             </div>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleAddToCart(product)}
+                                                disabled={product.available_qty === 0 || addingId === product.id}
+                                                className="w-fit gap-1.5 bg-[#38bdf8] text-white hover:bg-[#0ea5e9] disabled:opacity-50"
+                                            >
+                                                {addingId === product.id ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <ShoppingCart className="h-3.5 w-3.5" />
+                                                )}
+                                                Add to Cart
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
