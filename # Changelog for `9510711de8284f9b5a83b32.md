@@ -6,6 +6,6 @@ Use the 👍 and 👎 buttons in the editor toolbar to provide feedback on this 
 
 ----
 
-### Added
+### Changed
 
-- Adds subheading feature ([#66](https://github.com/dondave042/v0-nettoolz/issues/66))
+- Changes sub-heading formatting ([#66](https://github.com/dondave042/v0-nettoolz/issues/66))
