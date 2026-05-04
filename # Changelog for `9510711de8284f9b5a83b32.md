@@ -8,4 +8,4 @@ Use the 👍 and 👎 buttons in the editor toolbar to provide feedback on this 
 
 ### Added
 
-- Adds subheading functionality ([#66](https://github.com/dondave042/v0-nettoolz/issues/66))
+- Adds subheading feature ([#66](https://github.com/dondave042/v0-nettoolz/issues/66))
